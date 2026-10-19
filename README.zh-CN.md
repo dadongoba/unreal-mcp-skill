@@ -8,7 +8,7 @@
 
 ## 这是什么
 
-一个知识密集型的技能（不是插件——不含引擎代码），面向通过 Epic 的 **ModelContextProtocol** 工具集操作 UE 的 [Codely CLI](https://codely-docs.tuanjie.cn) 智能体（启用 AllToolsets 时共 67 个工具集）：
+一个知识密集型的技能（不是插件——不含引擎代码），面向通过 Epic 的 **ModelContextProtocol** 工具集操作 UE 的 [Codely CLI](https://codely-docs.tuanjie.cn) 智能体（实际工具集取决于引擎版本和启用的插件）：
 
 - **蓝图 DSL 工作流** —— 创建蓝图、变量、函数、跨蓝图调用、编译、PIE 验证；一套类 Scheme 的 DSL（`write_graph_dsl`），含 27 条实战验证过的语法法则
 - **场景 / 物理 / 碰撞** —— 组件选取规则、触发器模式、运行时物理激活
@@ -28,7 +28,28 @@
    ```
 2. **准备一个 UE5.8+ 项目**，其 `.uproject` 需启用以下插件（技能可在你同意后自动添加）：
    `ModelContextProtocol` · `ToolsetRegistry` · `EditorToolset` · `PythonScriptPlugin` · `AllToolsets`
-3. **启动 Codely 直接说需求** —— 例如「连上 UE」/「connect to UE」。智能体会执行 `scripts/ue_connect.py check`（诊断），然后 `launch` + `wait`（首次加载约 4.5 分钟）—— 详见 SKILL.md 的 *One-Click Connect* 一节。
+3. **注册目标编辑器**，需要 Python 3.10+，运行库仅使用标准库：
+   ~~~text
+   python scripts/ue_connect.py register --instance main --project <PROJECT.uproject> --engine <UE_ROOT> --port 8011
+   python scripts/ue_connect.py launch --instance main
+   python scripts/ue_connect.py wait --instance main
+   ~~~
+   多个编辑器使用[多实例连接](references/multi-instance.md)。受管写操作必须先绑定任务；旧版直接写调用需要迁移。
+
+## v3.17 运行层
+
+- 按实例和项目协调写入，校验监听进程身份，分别建立会话。
+- 支持 JSON/SSE，区分工具错误；写入结果未知时不盲目重放。
+- 本地经验队列、脱敏检查，以及用户明确启用后的原仓库投稿。
+- 为命令行宿主提供可恢复的[任务结束包装器](references/experience-contribution.md)。
+- 本机状态放在 ~/.unreal-mcp，与技能安装目录分离。
+
+投稿工作流需要先合入 master，并由仓库所有者开启 Actions 创建 PR 的权限。
+默认只在本机保存；每位用户自行选择是否启用公开上传。
+详见[投稿设置与隐私说明](references/experience-contribution.md)。
+
+验证范围：模拟 HTTP/SSE 与本地状态回归测试；真实双 UE 和公开入库链路仍需部署验证。
+
 
 > 启动顺序很重要：**先开 UE，再开 Codely**（Codely 只会在自身启动时发现 MCP 工具）。即使顺序搞反了，技能里的 `mcp_call.py` 兜底方案也能让你继续干活。
 

@@ -29,47 +29,20 @@ DEFAULT_URL = "http://127.0.0.1:8000/mcp"
 NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]*$")
 
 
-def post(url, body, sid=None, timeout=180):
-    headers = {"Content-Type": "application/json"}
-    if sid:
-        headers["Mcp-Session-Id"] = sid
-    req = urllib.request.Request(url, data=body.encode("utf-8"), headers=headers, method="POST")
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return r.read().decode("utf-8"), dict(r.headers)
-
-
 class Client:
     def __init__(self, url):
-        self.url = url
-        self.sid = None
+        from ue_mcp.transport import Client as Transport
+        self.transport = Transport(url, timeout=180)
 
     def connect(self):
-        init = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize",
-                           "params": {"protocolVersion": "2024-11-05", "capabilities": {},
-                                      "clientInfo": {"name": "snapshot", "version": "1.0"}}})
-        try:
-            _, headers = post(self.url, init, timeout=15)
-        except Exception as e:
-            sys.exit("cannot reach MCP endpoint {}: {} (is UE running with "
-                     "-ModelContextProtocolStartServer?)".format(self.url, e))
-        self.sid = headers.get("Mcp-Session-Id") or headers.get("mcp-session-id")
-        # NOTE: the notification returns an empty body. PowerShell 5.1's
-        # Invoke-WebRequest throws NullReferenceException on that; urllib is fine.
-        post(self.url, json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}),
-             self.sid, timeout=10)
+        self.transport.connect()
 
     def call(self, tool, args=None, toolset=None):
-        inner = {"tool_name": tool, "arguments": args or {}}
-        if toolset:
-            inner["toolset_name"] = toolset
-        body = json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/call",
-                           "params": {"name": "call_tool", "arguments": inner}})
-        text, _ = post(self.url, body, self.sid)
-        obj = json.loads(text)
-        content = obj.get("result", {}).get("content", [])
-        if not content:
-            raise RuntimeError("no content for {}: {}".format(tool, text[:200]))
-        return content[0].get("text", "")
+        result = self.transport.call(tool, args, toolset)
+        return "\n".join(item.get("text", "") for item in result.get("content", []))
+
+    def close(self):
+        self.transport.close()
 
 
 def parse_toolsets(raw):
@@ -92,23 +65,26 @@ def parse_toolsets(raw):
 def snapshot(url):
     c = Client(url)
     c.connect()
-    toolsets, others = parse_toolsets(c.call("list_toolsets"))
-    inventory = {}
-    for ts in toolsets:
-        blob = c.call("describe_toolset", {"toolset_name": ts})
-        inventory[ts] = sorted(set(
-            re.findall(re.escape('"name":"' + ts + ".") + r'([A-Za-z0-9_]+)"', blob)))
-    unique = set()
-    for names in inventory.values():
-        unique.update(names)
-    return {
-        "verified": __import__("datetime").date.today().isoformat(),
-        "toolset_count": len(inventory),
-        "tool_count": sum(len(v) for v in inventory.values()),
-        "unique_tool_name_count": len(unique),
-        "phantom_list_toolsets_entries": others,
-        "toolsets": inventory,
-    }
+    try:
+        toolsets, others = parse_toolsets(c.call("list_toolsets"))
+        inventory = {}
+        for ts in toolsets:
+            blob = c.call("describe_toolset", {"toolset_name": ts})
+            inventory[ts] = sorted(set(
+                re.findall(re.escape('"name":"' + ts + ".") + r'([A-Za-z0-9_]+)"', blob)))
+        unique = set()
+        for names in inventory.values():
+            unique.update(names)
+        return {
+            "verified": __import__("datetime").date.today().isoformat(),
+            "toolset_count": len(inventory),
+            "tool_count": sum(len(v) for v in inventory.values()),
+            "unique_tool_name_count": len(unique),
+            "phantom_list_toolsets_entries": others,
+            "toolsets": inventory,
+        }
+    finally:
+        c.close()
 
 
 def diff(old, new):
@@ -133,12 +109,20 @@ def diff(old, new):
 
 def main():
     ap = argparse.ArgumentParser(description="Snapshot the live UE MCP tool inventory")
-    ap.add_argument("--url", default=DEFAULT_URL)
+    ap.add_argument("--url")
+    ap.add_argument("--instance")
+    ap.add_argument("--state-dir")
     ap.add_argument("--out", help="output path (default references/ue<toolsets>_baseline.json)")
     ap.add_argument("--diff", help="compare against this baseline JSON and print the delta")
     args = ap.parse_args()
 
-    snap = snapshot(args.url)
+    from ue_mcp.instances import Store
+    store = Store(args.state_dir)
+    try:
+        url = store.resolve(args.instance, args.url)["url"]
+    finally:
+        store.close()
+    snap = snapshot(url)
 
     if args.diff:
         with open(args.diff, encoding="utf-8") as f:

@@ -1,7 +1,26 @@
 # Changelog
 
 All notable changes to this skill. Format: one version block per batch; the authoritative
-state lives in SKILL.md → Current state.
+runtime version lives in SKILL.md and domain facts live in references.
+
+## v3.17.0 (2026-10-19)
+- Independent local editor registrations and explicit target selection; instance
+  and project task leases, listener identity checks, crash-released call locks.
+- Shared Python JSON/SSE transport with separate sessions, negotiated protocol
+  headers, tool-error detection and no blind replay of uncertain writes.
+- PowerShell MCP caller delegates to Python; Python inventory/schema tools share
+  instance selection and transport.
+- Local experience finalization, strict allowlist schema, privacy filtering,
+  opt-in original-repository Issue publishing, durable queue and reconciliation.
+- A task completion wrapper journals interrupted work for recovery; unsupported
+  hosts still need an explicit completion call.
+- Default-branch-only Issue intake creates inbox JSON and draft PRs directly in
+  dadongoba/unreal-mcp-skill; no fork, shared maintainer PAT or separate repository.
+  Activation requires merging the workflow and enabling Actions PR creation.
+- Smaller SKILL.md; original G-law bodies retained in references/core-workflows.md.
+- Regression tests cover simulated HTTP/SSE isolation, ownership, privacy,
+  idempotent publishing, intake bounds and completion recovery. Real dual-editor
+  operation and live public intake are not claimed verified.
 
 ## v3.16.0 (2026-09-30)
 - **Host/environment lessons batch-committed** (one 2026-09-30 session, UE 5.8.3 + RTX 3080

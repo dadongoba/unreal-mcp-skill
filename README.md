@@ -8,7 +8,7 @@
 
 ## What it is
 
-A knowledge-packed skill (not a plugin — no engine code) for [Codely CLI](https://codely-docs.tuanjie.cn) agents operating UE via Epic's **ModelContextProtocol** toolsets (67 toolsets when AllToolsets is enabled):
+A knowledge-packed skill (not a plugin — no engine code) for [Codely CLI](https://codely-docs.tuanjie.cn) agents operating UE via Epic's **ModelContextProtocol** toolsets (the available toolsets depend on engine version and enabled plugins):
 
 - **Blueprint DSL workflows** — create BPs, variables, functions, cross-BP calls, compile, PIE-verify; a Scheme-like DSL (`write_graph_dsl`) with 27 battle-tested syntax laws
 - **Scene / physics / collision** — component selection rules, trigger patterns, runtime physics activation
@@ -28,7 +28,31 @@ Every rule carries a confidence tag: `[VERIFIED <date> UE<ver>-<lang>]` (PIE-pro
    ```
 2. **Ensure a UE5.8+ project** whose `.uproject` enables these plugins (the skill can add them with your consent):
    `ModelContextProtocol` · `ToolsetRegistry` · `EditorToolset` · `PythonScriptPlugin` · `AllToolsets`
-3. **Start Codely and just ask** — e.g. "连上 UE" / "connect to UE". The agent runs `scripts/ue_connect.py check` (diagnosis), then `launch` + `wait` (~4.5 min first load) — see SKILL.md → *One-Click Connect*.
+3. **Register the intended editor** using Python 3.10+ (standard library only):
+   ~~~text
+   python scripts/ue_connect.py register --instance main --project <PROJECT.uproject> --engine <UE_ROOT> --port 8011
+   python scripts/ue_connect.py launch --instance main
+   python scripts/ue_connect.py wait --instance main
+   ~~~
+   Use [independent instances](references/multi-instance.md) for multiple editors.
+   Managed writes require a task binding; existing raw write calls must migrate.
+
+## v3.17 runtime
+
+- Independent instance/project ownership, listener identity checks and separate sessions.
+- JSON/SSE transport and explicit errors; uncertain writes are never blindly replayed.
+- Local experience records, privacy checks and opt-in contributions to this original repository.
+- A recoverable [completion wrapper](references/experience-contribution.md) for command-based hosts.
+- Runtime data lives in ~/.unreal-mcp, separately from the installed skill.
+
+The contribution workflow must be merged onto master and the owner must enable
+Actions PR creation before inbox PRs can be created. Default contribution mode
+is local; every user chooses whether to enable public uploading. See
+[contribution setup](references/experience-contribution.md).
+
+Validation: simulated HTTP/SSE and local-state regression tests; live dual-UE
+operation and end-to-end public intake still require deployment validation.
+
 
 > Startup order matters: **UE first, then Codely** (Codely discovers MCP tools only at its own startup). The skill's `mcp_call.py` fallback keeps you working even if the order was wrong.
 

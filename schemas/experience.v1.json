@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/dadongoba/unreal-mcp-skill/schemas/experience.v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_id",
+    "kind",
+    "environment",
+    "domain",
+    "symptom",
+    "preconditions",
+    "attempts",
+    "cause",
+    "solution",
+    "verification",
+    "generic_reproduction"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "enum": [
+        1
+      ]
+    },
+    "record_id": {
+      "type": "string",
+      "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "pitfall",
+        "solution",
+        "case",
+        "unresolved"
+      ]
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ue_version",
+        "skill_version",
+        "editor_language",
+        "platform"
+      ],
+      "properties": {
+        "ue_version": {
+          "type": "string",
+          "pattern": "[0-9]{1,2}\\.[0-9]{1,2}(\\.[0-9]{1,3})?"
+        },
+        "skill_version": {
+          "type": "string",
+          "pattern": "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}"
+        },
+        "editor_language": {
+          "type": "string",
+          "pattern": "[a-z]{2,3}(-[A-Za-z]{2,4})?"
+        },
+        "platform": {
+          "type": "string",
+          "enum": [
+            "windows",
+            "macos",
+            "linux"
+          ]
+        }
+      }
+    },
+    "domain": {
+      "type": "string",
+      "enum": [
+        "blueprint",
+        "physics-collision",
+        "anim-sequencer",
+        "scene-actors",
+        "anim-controlrig",
+        "niagara-vfx",
+        "pcg",
+        "materials-assets",
+        "skeletal-mesh",
+        "env-session",
+        "data-ui"
+      ]
+    },
+    "symptom": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "preconditions": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "string",
+        "minLength": 0,
+        "maxLength": 1000
+      }
+    },
+    "attempts": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "action",
+          "result"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 1000
+          },
+          "result": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 1000
+          }
+        }
+      }
+    },
+    "cause": {
+      "type": "string",
+      "minLength": 0,
+      "maxLength": 1000
+    },
+    "solution": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "string",
+        "minLength": 0,
+        "maxLength": 1000
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "method",
+        "assertion",
+        "maintainer_reproduced"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "observed",
+            "reporter_verified"
+          ]
+        },
+        "method": {
+          "type": "string",
+          "enum": [
+            "none",
+            "compile",
+            "readback",
+            "pie_assertion",
+            "user_confirmed"
+          ]
+        },
+        "assertion": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 1000
+        },
+        "maintainer_reproduced": {
+          "type": "boolean",
+          "enum": [
+            false
+          ]
+        }
+      }
+    },
+    "generic_reproduction": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "string",
+        "minLength": 0,
+        "maxLength": 1000
+      }
+    }
+  }
+}
