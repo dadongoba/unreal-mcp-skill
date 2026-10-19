@@ -14,6 +14,7 @@ import uuid
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from ue_mcp.instances import InstanceError, Store, endpoint
 from ue_mcp.transport import Client, ToolError, TransportError
+from ue_mcp.transport import check_result
 from ue_mcp.experience import (ExperienceError, Queue, REPOSITORY, issue_body,
                                parse_issue, public_check, sanitize)
 from ingest_experience import ingest
@@ -103,6 +104,13 @@ class MCPServer:
 
 
 class TransportTests(unittest.TestCase):
+    def test_tool_error_keeps_bounded_original_diagnostic(self):
+        value = {"isError": True, "content": [{"type": "text", "text": "Unknown toolset: Example"}]}
+        with self.assertRaises(ToolError) as captured:
+            check_result(value)
+        self.assertIn("Unknown toolset: Example", str(captured.exception))
+        self.assertEqual(captured.exception.result, value)
+
     def test_two_endpoints_never_share_session_or_results(self):
         with MCPServer("A") as a, MCPServer("B") as b:
             with Client(a.url) as ca, Client(b.url) as cb:

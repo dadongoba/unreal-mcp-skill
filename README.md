@@ -60,8 +60,10 @@ Actions PR creation before inbox PRs can be created. Default contribution mode
 is local; every user chooses whether to enable public uploading. See
 [contribution setup](references/experience-contribution.md).
 
-Validation: simulated HTTP/SSE and local-state regression tests; live dual-UE
-operation and end-to-end public intake still require deployment validation.
+Validation: simulated HTTP/SSE, local-state regressions, official SDK interop,
+and a [real Windows UE 5.8.3 dual-editor run](references/validation/ue583-dual-editor-20261019.md)
+covering routing, Blueprint save/readback and PIE in NullRHI mode. Rendering,
+map persistence and end-to-end public intake are outside that verified coverage.
 
 
 The bridge can start before UE; register the intended instance and start UE before

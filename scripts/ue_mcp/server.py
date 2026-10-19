@@ -64,6 +64,15 @@ class HTTPServer(ThreadingHTTPServer):
         finally:
             self.workers.release()
 
+    def server_close(self):
+        super().server_close()
+        with self.sessions_lock:
+            entries = list(self.sessions.values())
+            self.sessions.clear()
+        for session, lock, _ in entries:
+            with lock:
+                session.close()  # Normal shutdown must not leave crash-style leases.
+
     def session(self, sid):
         with self.sessions_lock:
             entry = self.sessions.get(sid)

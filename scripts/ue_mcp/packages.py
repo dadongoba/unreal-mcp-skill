@@ -247,11 +247,14 @@ class Manager:
         if target.exists():
             if not target.is_dir():
                 raise ValueError("Adapter destination is not a directory")
-            backup = parent / "_backup" / ("unreal-mcp-before-shared-" + uuid.uuid4().hex)
-            backup.parent.mkdir(exist_ok=True)
-            if not backup.resolve().is_relative_to(parent) or target.resolve().parent != parent:
-                raise ValueError("Backup must remain within the selected skills directory")
-            os.replace(target, backup)
+            # Skill loaders can recurse into _backup and discover duplicate skills.
+            # Keep complete backups outside every client's skill discovery directory.
+            backup = (self.home / "backups" / "adapters" / digest(str(parent).encode())[:12]
+                      / ("unreal-mcp-before-shared-" + uuid.uuid4().hex))
+            backup.parent.mkdir(parents=True, exist_ok=True)
+            if not backup.resolve().is_relative_to(self.home) or target.resolve().parent != parent:
+                raise ValueError("Backup must remain inside the shared home's backup directory")
+            shutil.move(str(target), str(backup))
         target.mkdir(parents=True)
         (target / "SKILL.md").write_text(body, encoding="utf-8")
         atomic_json(marker, {"format": 1, "shared_home": str(self.home)})

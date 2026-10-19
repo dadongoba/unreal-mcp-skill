@@ -11,6 +11,7 @@ def documents(root=ROOT):
     paths = [root / "SKILL.md", root / "schemas" / "experience.v1.json"]
     paths += sorted((root / "references").glob("*.md"))
     paths += sorted((root / "references" / "capabilities").glob("*.md"))
+    paths += sorted((root / "references" / "validation").glob("*.md"))
     paths += sorted((root / "references" / "templates").glob("*.txt"))
     # Inbox and candidates are deliberately absent: receiving a report is not verification.
     paths += sorted((root / "knowledge" / "published").glob("*.json"))

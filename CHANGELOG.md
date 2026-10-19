@@ -12,6 +12,10 @@ runtime version lives in SKILL.md and domain facts live in references.
   active-task upgrade guards, rollback and small identical host adapters.
 - Explicit candidate/reproduction/promotion workflow for community knowledge.
 - Portable release workflow and cross-client/package regression coverage.
+- Live Windows UE 5.8.3 dual-editor routing, Blueprint compile/save and PIE
+  behavior verified in NullRHI mode; map duplication/save failure documented.
+- Keep adapter backups outside Skill discovery, preserve bounded UE error
+  diagnostics, and release HTTP session tasks on normal server shutdown.
 
 ## v3.17.0 (2026-10-19)
 - Independent local editor registrations and explicit target selection; instance

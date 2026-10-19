@@ -174,7 +174,8 @@ class Session:
                         result["structuredContent"] = value
                 except (MCPError, InstanceError, ExperienceError, ValueError, OSError, sqlite3.Error) as error:
                     result = {"content": [{"type": "text", "text": str(error)}], "isError": True}
-                    if isinstance(error, TransportError):
+                    if (isinstance(error, TransportError) and params.get("name") == "ue_call"
+                            and params.get("arguments", {}).get("tool") not in READ_TOOLS):
                         result["content"][0]["text"] += "; outcome may be UNKNOWN; read back before retrying a write"
             else:
                 raise RPCError(-32601, "Method not found")

@@ -58,7 +58,9 @@
 默认只在本机保存；每位用户自行选择是否启用公开上传。
 详见[投稿设置与隐私说明](references/experience-contribution.md)。
 
-验证范围：模拟 HTTP/SSE 与本地状态回归测试；真实双 UE 和公开入库链路仍需部署验证。
+验证范围：模拟 HTTP/SSE、本地状态回归、官方 SDK 互通，以及
+[Windows UE 5.8.3 真实双编辑器测试](references/validation/ue583-dual-editor-20261019.md)：
+无渲染模式下的路由、蓝图保存与读回、PIE 行为已验证；渲染、地图持久化和公开入库链路不在此次通过范围内。
 
 
 桥接服务可先于 UE 启动；开始编辑任务前，需要注册目标实例并启动 UE。

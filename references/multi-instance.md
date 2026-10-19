@@ -1,6 +1,6 @@
 # Independent editor instances
 
-Runtime version: 3.17.0. Python 3.10+; standard library only. Windows identity
+Runtime version: 3.18.0. Python 3.10+; standard library only. Windows identity
 inspection uses PowerShell/Get-NetTCPConnection/CIM; macOS/Linux use lsof and ps.
 Install lsof on Linux if it is absent. An unverifiable identity blocks managed writes.
 
@@ -96,4 +96,6 @@ it does not provide task ownership. Prefer its Python twin for instance selectio
 
 Automated tests use independent simulated HTTP/SSE servers and local lock/state
 checks. They do not certify simultaneous operation of real UE editors on every
-platform. The port launch parameters are confirmed in UE 5.8.3 source.
+platform. A [Windows UE 5.8.3 dual-editor run](validation/ue583-dual-editor-20261019.md)
+verified actual routing, Blueprint persistence and PIE behavior in NullRHI mode.
+The port launch parameters are confirmed in UE 5.8.3 source.

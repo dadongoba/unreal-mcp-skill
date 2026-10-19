@@ -22,7 +22,8 @@ python scripts/unreal_mcp.py contract
 ~~~
 
 Repeat adapter only for clients that load Skills. Existing directories are moved
-to unique sibling `_backup` folders before creating the small adapter. Local
+to unique `~/.unreal-mcp/backups/adapters` folders outside skill discovery before
+creating the small adapter. Local
 customizations remain in those backups; they are not silently promoted into
 shared instructions. Both adapters point to `~/.unreal-mcp/launch.py` and contain
 no copied core scripts. `UNREAL_MCP_HOME` or the management CLI's `--home` selects

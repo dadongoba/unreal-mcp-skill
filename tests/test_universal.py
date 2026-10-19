@@ -127,6 +127,23 @@ class BridgeTests(unittest.TestCase):
 
 
 class HTTPTests(unittest.TestCase):
+    def test_normal_server_shutdown_releases_its_session_tasks(self):
+        with tempfile.TemporaryDirectory() as root:
+            server = HTTPServer(("127.0.0.1", 0), "x" * 48, root)
+            sid, entry = server.create_session()
+            store = entry[0].store()
+            try:
+                project = Path(root) / "Example.uproject"
+                project.write_text("{}")
+                profile = store.register("test", project)
+                store.begin(profile, "owned", {"pid": 1, "started": "test"})
+                with store.db:
+                    store.db.execute("INSERT INTO bridge_tasks VALUES(?,?)", ("owned", entry[0].owner))
+                server.server_close()
+                self.assertEqual(store.db.execute("SELECT status FROM tasks WHERE id='owned'").fetchone()[0], "closed")
+            finally:
+                store.close()
+
     def test_auth_origin_lifecycle_and_deleted_session(self):
         with tempfile.TemporaryDirectory() as root:
             token = "x" * 48
@@ -195,6 +212,8 @@ class PackageTests(unittest.TestCase):
         (targets[0] / "private.txt").write_text("retain this local customization")
         results = [self.manager.adapter(path) for path in targets]
         self.assertTrue((Path(results[0]["backup"]) / "private.txt").exists())
+        self.assertTrue(Path(results[0]["backup"]).is_relative_to(self.manager.home / "backups"))
+        self.assertFalse(Path(results[0]["backup"]).is_relative_to(targets[0].parent))
         self.assertEqual((targets[0] / "SKILL.md").read_bytes(), (targets[1] / "SKILL.md").read_bytes())
         self.assertEqual(len(list(targets[0].iterdir())), 2)
         self.assertEqual(verify(self.manager.home / "packages" / active["package"])["version"], VERSION)
