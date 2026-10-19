@@ -5,6 +5,7 @@ separate from unittest discovery, and touches no real editor or remote service.
 """
 import asyncio
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -23,9 +24,11 @@ from ue_mcp.server import HTTPServer
 
 
 async def main():
+    os.environ["UNREAL_MCP_UPDATE_CHECK"] = "off"  # Integration remains offline.
     root = Path(__file__).resolve().parents[1]
     with tempfile.TemporaryDirectory() as folder:
         params = StdioServerParameters(command=sys.executable,
+            env={"UNREAL_MCP_UPDATE_CHECK": "off"},
             args=[str(root / "scripts/mcp_server.py"), "--state-dir", folder])
         async with Client(params, read_timeout_seconds=15) as client:
             tools = await client.list_tools()

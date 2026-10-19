@@ -14,6 +14,7 @@ from ue_mcp import VERSION, knowledge
 from ue_mcp.experience import Queue
 from ue_mcp.instances import Store
 from ue_mcp.packages import Manager, ROOT, build, download, latest, verify
+from ue_mcp.updates import check as check_update, local as local_version
 
 
 def main():
@@ -34,7 +35,11 @@ def main():
     inputs.add_argument("--archive")
     install.add_argument("--sha256")
     install.add_argument("--skill-dir", action="append", default=[])
-    subs.add_parser("check")
+    check = subs.add_parser("check")
+    check.add_argument("--force", action="store_true")
+    check.add_argument("--offline", action="store_true")
+    capabilities = subs.add_parser("capabilities")
+    capabilities.add_argument("--instance", required=True)
     subs.add_parser("update")
     subs.add_parser("rollback")
     subs.add_parser("config")
@@ -85,10 +90,10 @@ def main():
                     output.write(secrets.token_urlsafe(48) + "\n")
                 value = {"token_file": str(token_path), "note": "Keep private; token value is not printed."}
             elif args.cmd in {"check", "update"}:
-                metadata, url = latest()
                 if args.cmd == "check":
-                    value = {"installed": manager.active(), "available": metadata}
+                    value = check_update(manager.home, force=args.force, offline=args.offline)
                 else:
+                    metadata, url = latest()
                     active = manager.active()
                     if active and tuple(map(int, active["version"].split("."))) >= tuple(map(int, metadata["version"].split("."))):
                         value = {"status": "current", "installed": active, "available": metadata["version"]}
@@ -97,6 +102,13 @@ def main():
                             archive = Path(folder) / metadata["archive"]
                             archive.write_bytes(download(url))
                             value = manager.install(archive, metadata["sha256"])
+            elif args.cmd == "capabilities":
+                from ue_mcp.runtime import capabilities
+                store = Store(manager.home)
+                try:
+                    value = capabilities(store, args.instance)
+                finally:
+                    store.close()
             elif args.cmd == "doctor":
                 store = Store(manager.home)
                 try:
@@ -107,7 +119,8 @@ def main():
                              "python": platform.python_version(), "platform": sys.platform,
                              "gh_available": bool(shutil.which("gh")),
                              "instances": list(store.profiles()), "contribution": Queue(store).config(),
-                             "reconnect_required": bool(active and active["version"] != VERSION),
+                             "reconnect_required": local_version(manager)["reconnect_required"],
+                             "update": check_update(manager.home, offline=True),
                              "live_ue_verified": False}
                 finally:
                     store.close()

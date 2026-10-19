@@ -13,6 +13,11 @@ READ_TOOLS = frozenset({"list_toolsets", "describe_toolset"})
 MAX_RESPONSE = 16 * 1024 * 1024
 
 
+def is_discovery(tool, toolset=None):
+    # A toolset can define a same-named tool with arbitrary side effects.
+    return tool in READ_TOOLS and not toolset
+
+
 class MCPError(RuntimeError):
     pass
 

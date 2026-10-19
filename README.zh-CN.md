@@ -2,7 +2,7 @@
 
 [English](README.md) · **简体中文**
 
-> 一个面向不同 AI 客户端的 **标准 Agent Skill 与 MCP 运行时**，通过 UE 内置 MCP 操作 **Unreal Engine 5.8+** 的蓝图、场景、材质、动画、物理和界面。
+> 一个面向不同 AI 客户端的 **标准 Agent Skill 与 MCP 运行时**，支持 Epic Toolsets 与原生 HTTP 后端适配。真机验证版本为 UE 5.8.3；UE 5.7 适配目前通过协议模拟测试，尚未完成真机验证。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -40,7 +40,14 @@
    ~~~
    多个编辑器使用[多实例连接](references/multi-instance.md)。受管写操作必须先绑定任务；旧版直接写调用需要迁移。
 
-## v3.18 共享运行层
+## v3.19 后端与更新发现（尚未发布）
+
+- 新增 ue_capabilities，根据实际工具 Schema 识别 Epic、Avatar，或显式使用原生 MCP 调用。详见[兼容范围与验证证据](references/backends.md)。
+- ue_status 自动检查原仓库的稳定 Release，多个客户端共享 24 小时缓存；ue_check_update 可立即刷新或离线读取。
+- 网络失败明确返回“未知”；只有旧源码 Release、没有可升级安装包时，返回“尚未发布便携包”。
+- 检查不会安装更新；更新仍受活动任务保护，支持回滚，并提示已有客户端重连。详见[更新发现机制](references/update-discovery.md)。
+
+## 共享运行层
 
 - 提供标准 MCP stdio 和带认证的本机 HTTP 接口，核心不依赖特定 AI 软件。
 - 任务归属各自 MCP 会话；不支持 Skills 的客户端也可检索、读取正式知识。

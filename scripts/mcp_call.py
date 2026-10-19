@@ -7,7 +7,7 @@ import sys
 
 from ue_mcp.instances import InstanceError, Store
 from ue_mcp.runtime import call
-from ue_mcp.transport import MCPError, READ_TOOLS, TransportError
+from ue_mcp.transport import MCPError, is_discovery, TransportError
 
 
 def main():
@@ -27,7 +27,7 @@ def main():
     ap.add_argument("--timeout", type=float, default=120)
     args = ap.parse_args()
     store = Store(args.state_dir)
-    writing = args.script_path or args.tool not in READ_TOOLS
+    writing = args.script_path or not is_discovery(args.tool, args.toolset)
     try:
         if not 1 <= args.timeout <= 120:
             raise InstanceError("Timeout must be 1-120 seconds (below the task lease duration)")

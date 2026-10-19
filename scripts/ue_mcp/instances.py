@@ -169,13 +169,16 @@ class Store:
         return {row["name"]: json.loads(row["data"]) for row in self.db.execute(
             "SELECT name,data FROM instances ORDER BY name")}
 
-    def register(self, name, project, url=DEFAULT_URL, engine=None):
+    def register(self, name, project, url=DEFAULT_URL, engine=None, backend="epic-toolsets"):
+        from .backends import BACKENDS
+        if backend not in BACKENDS:
+            raise InstanceError("Unknown backend; choose " + ", ".join(BACKENDS))
         valid_id(name)
         path = Path(project).expanduser().resolve()
         if path.suffix.lower() != ".uproject" or not path.is_file():
             raise InstanceError("Registration requires an existing .uproject file")
         profile = {"name": name, "project": canonical(path), "url": endpoint(url),
-                   "engine": canonical(engine) if engine else None}
+                   "engine": canonical(engine) if engine else None, "backend": backend}
         with self.transaction():
             if self.db.execute("SELECT 1 FROM tasks WHERE instance=? AND status='active' AND expires>?",
                                (name, time.time())).fetchone():

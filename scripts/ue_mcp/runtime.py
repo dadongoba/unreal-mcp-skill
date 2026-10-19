@@ -4,7 +4,18 @@ from pathlib import Path
 
 from .experience import ExperienceError, Queue
 from .instances import InstanceError, process_identity
-from .transport import Client, READ_TOOLS
+from .transport import Client, is_discovery
+from .backends import dispatch, discover
+
+
+def capabilities(store, instance):
+    profile = store.resolve(instance)
+    identity = process_identity(profile["url"], profile["project"])
+    with Client(profile["url"], timeout=15) as client:
+        result = discover(client, profile.get("backend", "epic-toolsets"))
+        if process_identity(profile["url"], profile["project"]) != identity:
+            raise InstanceError("Editor changed during capability discovery")
+    return dict(result, instance=instance, identity_verified=True)
 
 
 def call(store, tool, arguments=None, instance=None, task_id=None, toolset=None,
@@ -14,14 +25,18 @@ def call(store, tool, arguments=None, instance=None, task_id=None, toolset=None,
     if isinstance(timeout, bool) or not 1 <= timeout <= 120:
         raise ValueError("Timeout must be 1-120 seconds")
     profile = store.resolve(instance, url)
-    if tool in READ_TOOLS:
+    backend = profile.get("backend", "epic-toolsets")
+    if is_discovery(tool, toolset) and not task_id:
+        if backend not in {"epic-toolsets", "auto"}:
+            raise ValueError("Use ue_capabilities for backend-neutral discovery")
         with Client(profile["url"], timeout=timeout) as client:
-            return client.call(tool, arguments, toolset)
+            return dispatch(client, backend, tool, arguments, toolset)
     with store.write_guard(profile, task_id) as identity:
         with Client(profile["url"], timeout=timeout) as client:
-            if process_identity(profile["url"], profile["project"]) != identity:
-                raise InstanceError("Editor changed during initialize; no write was sent")
-            return client.call(tool, arguments, toolset)
+            def verify_before_send():
+                if process_identity(profile["url"], profile["project"]) != identity:
+                    raise InstanceError("Editor changed during initialize/discovery; no write was sent")
+            return dispatch(client, backend, tool, arguments, toolset, verify_before_send)
 
 
 def finalize(store, task_id, record, instance=None, private_terms=()):

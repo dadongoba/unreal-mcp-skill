@@ -70,6 +70,10 @@ host task-completion event or expose the whole conversation to this service.
 1. ue_knowledge_read(path=SKILL.md), then load relevant domain guidance.
 2. ue_status; select the intended instance. ue_register_instance can register an
    existing local project with an explicit local URL. It does not launch UE.
+   ue_status also returns the shared automatic release check; ue_check_update
+   supports force/offline checks. See [update discovery](update-discovery.md).
+   Choose backend at registration and inspect ue_capabilities before first use;
+   see [backends](backends.md) for live schema and actual validation limits.
 3. ue_begin_task(instance) verifies process identity and returns a fresh task_id.
 4. ue_call(instance, task_id, tool, toolset, arguments) discovers/executes UE tools
    using the same guarded runtime as mcp_call.py. `list_toolsets` and
@@ -115,7 +119,7 @@ Never expose the raw UE port or token through a public unauthenticated tunnel.
 ## Releases, checks and rollback
 
 ~~~text
-python scripts/unreal_mcp.py build --output dist/unreal-mcp-3.18.0.zip
+python scripts/unreal_mcp.py build --output dist/unreal-mcp-3.19.0.zip
 python scripts/unreal_mcp.py install --archive <ZIP> --sha256 <TRUSTED_SHA256>
 python <SHARED_HOME>/launch.py check
 python <SHARED_HOME>/launch.py update
@@ -133,6 +137,8 @@ backward-compatible for rollback to work.
 
 `check`/`update` use stable releases from dadongoba/unreal-mcp-skill only. `update`
 does not downgrade a newer local installation. No recurring update job is installed.
+ue_status performs a cached automatic check when a host invokes it; this is not
+a background job. Network failures remain unknown and do not block UE execution.
 Before the first portable release is published, install from a trusted checkout
 or reviewed archive. A checksum detects corruption; release trust comes from the
 original repository and its reviewed maintainers.

@@ -67,6 +67,10 @@ class MCPServer:
                     self.send_response(202)
                     self.end_headers()
                     return
+                elif method == "tools/list":
+                    result = {"tools": [{"name": "call_tool", "inputSchema": {
+                        "type": "object", "properties": {"tool_name": {"type": "string"},
+                                                            "arguments": {"type": "object"}}}}]}
                 else:
                     tool = value["params"]["arguments"]["tool_name"]
                     parent.calls.append(tool)

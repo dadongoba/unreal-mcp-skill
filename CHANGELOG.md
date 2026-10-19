@@ -1,7 +1,22 @@
 # Changelog
 
 All notable changes to this skill. Format: one version block per batch; the authoritative
-runtime version lives in SKILL.md and domain facts live in references.
+runtime version lives in scripts/ue_mcp/__init__.py and domain facts live in references.
+
+## v3.19.0 (unreleased)
+
+- Live backend schema discovery and guarded dispatch for Epic Toolsets, Avatar's
+  UE 5.7 native HTTP contract and explicitly selected native MCP tools. Automatic
+  recognition refuses unknown or ambiguous schemas, including discriminated actions.
+- Keep external sidecar/stdin plugin candidates distinct from supported direct
+  editor listeners; document the missing identity/routing work and UE test evidence.
+- Shared 24-hour automatic stable-release checks in ue_status, explicit MCP/CLI
+  refresh/offline modes, one-hour failure backoff and truthful unknown/unpublished
+  states. Checks do not install updates or send project/experience content.
+- Detect stale running packages even when version numbers match. Historical
+  source-only Releases do not masquerade as portable update packages.
+- New regression tests cover HTTP dispatch, ownership and post-discovery identity,
+  pagination, release comparison/cache/failures, and MCP status integration.
 
 ## v3.18.0 (2026-10-19)
 

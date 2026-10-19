@@ -7,11 +7,14 @@ from . import VERSION
 from .experience import ExperienceError, Queue, _validate
 from .instances import InstanceError, Store, process_identity
 from . import knowledge, runtime
-from .transport import MCPError, READ_TOOLS, TransportError
+from .backends import BACKENDS
+from .updates import check as check_update
+from .transport import MCPError, is_discovery, TransportError
 
 PROTOCOLS = ("2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25")
 INSTRUCTIONS = (
-    "Read ue_knowledge_read(path='SKILL.md') before authoring. Select/register the intended "
+    "Start with ue_status for runtime/update status, then read ue_knowledge_read(path='SKILL.md'). "
+    "Check ue_capabilities for a new backend; tool schemas are not behavior certification. Select/register the intended "
     "UE instance, begin a task, use ue_call with that task_id, verify the UE result, then "
     "ue_finish_task even on failure. Supply only a generic experience record when useful. "
     "Public contributions require the user's local opt-in. Unknown write outcomes must be "
@@ -34,7 +37,12 @@ TOOLS = [
     tool("ue_status", "Runtime version, registered instances and contribution mode; no UE mutation."),
     tool("ue_register_instance", "Register an explicitly chosen local UE project and MCP port. Does not launch UE.",
          {"instance": text_rule(80), "project": text_rule(4096), "url": text_rule(2048),
-          "engine": text_rule(4096)}, ("instance", "project", "url"), False),
+          "engine": text_rule(4096), "backend": {"type": "string", "enum": list(BACKENDS)}},
+         ("instance", "project", "url"), False),
+    tool("ue_capabilities", "Inspect live backend schemas for a registered editor. Does not certify tool behavior or UE-version support.",
+         {"instance": text_rule(80)}, ("instance",)),
+    tool("ue_check_update", "Check the original repository's stable release, or read the shared cache. Never installs or activates updates.",
+         {"force": {"type": "boolean"}, "offline": {"type": "boolean"}}),
     tool("ue_begin_task", "Verify the editor process and acquire exclusive instance/project ownership. Returns a new task_id.",
          {"instance": text_rule(80)}, ("instance",), False),
     tool("ue_call", "Call a UE tool by discovered name/toolset. All non-discovery tools require this session's task_id. Never blindly retry UNKNOWN writes.",
@@ -101,14 +109,20 @@ class Session:
             if name == "ue_status":
                 return {"version": VERSION, "contract_version": 1,
                         "instances": list(store.profiles().values()),
-                        "experience": Queue(store).config(), "instructions": INSTRUCTIONS}
+                        "experience": Queue(store).config(), "instructions": INSTRUCTIONS,
+                        "update": check_update(store.root)}
+            if name == "ue_check_update":
+                return check_update(store.root, **args)
+            if name == "ue_capabilities":
+                return runtime.capabilities(store, args["instance"])
             if name == "ue_experience_status":
                 queue = Queue(store)
                 return {"config": queue.config(), "counts": {
                     row["status"]: row["count"] for row in store.db.execute(
                         "SELECT status,COUNT(*) AS count FROM contributions GROUP BY status")}}
             if name == "ue_register_instance":
-                return store.register(args["instance"], args["project"], args["url"], args.get("engine"))
+                return store.register(args["instance"], args["project"], args["url"], args.get("engine"),
+                                      args.get("backend", "epic-toolsets"))
             if name == "ue_begin_task":
                 profile = store.resolve(args["instance"])
                 task_id = str(uuid.uuid4())
@@ -122,7 +136,7 @@ class Session:
                 return {"task_id": task_id, "instance": profile["name"], "lease_seconds": 900}
             if name == "ue_call":
                 task_id = args.get("task_id")
-                if task_id or args["tool"] not in READ_TOOLS:
+                if task_id or not is_discovery(args["tool"], args.get("toolset")):
                     self.owned(store, task_id)
                 return {"result": runtime.call(store, **args)}
             if name == "ue_finish_task":
@@ -175,7 +189,8 @@ class Session:
                 except (MCPError, InstanceError, ExperienceError, ValueError, OSError, sqlite3.Error) as error:
                     result = {"content": [{"type": "text", "text": str(error)}], "isError": True}
                     if (isinstance(error, TransportError) and params.get("name") == "ue_call"
-                            and params.get("arguments", {}).get("tool") not in READ_TOOLS):
+                            and not is_discovery(params.get("arguments", {}).get("tool"),
+                                                 params.get("arguments", {}).get("toolset"))):
                         result["content"][0]["text"] += "; outcome may be UNKNOWN; read back before retrying a write"
             else:
                 raise RPCError(-32601, "Method not found")

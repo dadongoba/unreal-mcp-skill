@@ -2,7 +2,7 @@
 
 **English** · [简体中文](README.zh-CN.md)
 
-> A **client-neutral Agent Skill and MCP runtime** for Unreal Engine 5.8+: blueprint authoring, scenes, materials, animation, physics and UI from compatible AI clients.
+> A **client-neutral Agent Skill and MCP runtime** for Unreal Engine, with Epic Toolsets and native HTTP backend adapters. Real-editor validation: UE 5.8.3; UE 5.7 adapters currently have protocol-test coverage only.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -41,7 +41,17 @@ Every rule carries a confidence tag: `[VERIFIED <date> UE<ver>-<lang>]` (PIE-pro
    Use [independent instances](references/multi-instance.md) for multiple editors.
    Managed writes require a task binding; existing raw write calls must migrate.
 
-## v3.18 shared runtime
+## v3.19 backend and update discovery (unreleased)
+
+- Inspect live tool schemas with ue_capabilities; select Epic, Avatar or explicit
+  native MCP dispatch. [Compatibility and evidence](references/backends.md).
+- ue_status checks the original repository's stable release once per 24 hours,
+  shared across clients. ue_check_update supports fresh/offline checks. Failed
+  checks remain unknown; historical Releases without portable assets are unpublished.
+- Detection does not install anything. Active/running package identity, upgrade
+  guards and rollback remain separate. [Update discovery](references/update-discovery.md).
+
+## Shared runtime
 
 - MCP stdio and authenticated loopback HTTP; no particular AI client required.
 - Session-owned task lifecycle and published knowledge tools for MCP-only hosts.

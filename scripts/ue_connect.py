@@ -12,6 +12,7 @@ from urllib.parse import urlsplit
 
 from ue_mcp.instances import InstanceError, Store, process_identity, project_is_running
 from ue_mcp.transport import Client, MCPError
+from ue_mcp.backends import BACKENDS
 from snapshot_toolsets import parse_toolsets
 
 REQUIRED_PLUGINS = ["ModelContextProtocol", "ToolsetRegistry", "EditorToolset",
@@ -59,16 +60,25 @@ def check(profile):
     if profile.get("project"):
         identity = process_identity(profile["url"], profile["project"])
     with Client(profile["url"], timeout=15) as client:
-        result = client.call("list_toolsets")
-        text = "\n".join(item.get("text", "") for item in result.get("content", []))
-        toolsets, _ = parse_toolsets(text)
+        from ue_mcp.backends import discover
+        capabilities = discover(client, profile.get("backend", "epic-toolsets"))
+        toolsets = []
+        if capabilities["backend"] == "epic-toolsets":
+            result = client.call("list_toolsets")
+            text = "\n".join(item.get("text", "") for item in result.get("content", []))
+            toolsets, _ = parse_toolsets(text)
+        if identity and process_identity(profile["url"], profile["project"]) != identity:
+            raise InstanceError("Editor changed during discovery")
     print(json.dumps({"instance": profile.get("name"), "url": profile["url"],
                       "identity_verified": identity is not None,
-                      "identity": identity, "toolsets": len(toolsets)}, indent=2))
+                      "identity": identity, "toolsets": len(toolsets),
+                      "capabilities": capabilities}, indent=2))
     return identity
 
 
 def launch(store, profile, fix=False):
+    if profile.get("backend", "epic-toolsets") != "epic-toolsets":
+        raise InstanceError("Automatic launch/plugin edits are Epic-only; configure and start this backend using its own instructions")
     if not profile.get("project"):
         raise InstanceError("Register the project before launching an editor")
     # Locks protect launch from other managed launchers for this instance and project.
@@ -109,6 +119,7 @@ def main():
     register.add_argument("--project", required=True)
     register.add_argument("--engine")
     register.add_argument("--port", type=int)
+    register.add_argument("--backend", choices=BACKENDS, default="epic-toolsets")
     sub.add_parser("list", parents=[common])
     for name in ("check", "launch", "wait", "all"):
         parser = sub.add_parser(name, parents=[common])
@@ -143,7 +154,8 @@ def main():
             if not args.instance and len(store.profiles()) > 1:
                 raise InstanceError("Specify --instance when registering among multiple projects")
             name = args.instance or "default"
-            profile = store.register(name, args.project, url, args.engine)
+            profile = store.register(name, args.project, url, args.engine,
+                                     getattr(args, "backend", "epic-toolsets"))
             if args.cmd == "register":
                 print(json.dumps(profile, indent=2))
                 return 0

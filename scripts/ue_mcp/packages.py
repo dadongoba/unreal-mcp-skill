@@ -229,7 +229,8 @@ class Manager:
         body = ("---\nname: unreal-mcp\ndescription: Operate Unreal Engine through MCP; "
                 "author and verify Blueprints, scenes, materials, animation, physics and UI.\n---\n\n"
                 "# Unreal MCP shared runtime\n\n"
-                "Use the connected Unreal MCP tools. First call ue_knowledge_read with path SKILL.md; "
+                "Use the connected Unreal MCP tools. First call ue_status for shared version/update status, "
+                "then ue_knowledge_read with path SKILL.md; "
                 "load relevant domain references through the knowledge tools. Begin an explicitly "
                 "selected instance task, execute and verify, then call ue_finish_task. "
                 "Preserve user authorization and local contribution preferences.\n\n"
@@ -275,35 +276,49 @@ def validate_url(url):
         raise ValueError("Unexpected release download host")
 
 
-def download(url, maximum=MAX_PACKAGE):
+def download(url, maximum=MAX_PACKAGE, timeout=30):
     validate_url(url)
     request = urllib.request.Request(url, headers={"User-Agent": "unreal-mcp/" + VERSION})
-    with urllib.request.build_opener(ReleaseRedirect()).open(request, timeout=30) as response:
+    with urllib.request.build_opener(ReleaseRedirect()).open(request, timeout=timeout) as response:
         raw = response.read(maximum + 1)
     if len(raw) > maximum:
         raise ValueError("Release response exceeds size limit")
     return raw
 
 
-def latest():
+class NoStableRelease(ValueError):
+    pass
+
+
+def latest(timeout=30):
     try:
-        release = json.loads(download("https://api.github.com/repos/" + REPOSITORY + "/releases/latest", 512000))
+        release = json.loads(download("https://api.github.com/repos/" + REPOSITORY + "/releases/latest", 512000, timeout))
     except urllib.error.HTTPError as error:
         if error.code == 404:
-            raise ValueError("No stable portable release is published yet; install from a trusted checkout") from error
+            raise NoStableRelease("No stable portable release is published yet; install from a trusted checkout") from error
         raise
-    tag = release["tag_name"]
+    if not isinstance(release, dict) or not isinstance(release.get("assets"), list):
+        raise ValueError("Invalid stable release response")
+    tag = release.get("tag_name", "")
     if not re.fullmatch(r"v\d+\.\d+\.\d+", tag) or release.get("draft") or release.get("prerelease"):
         raise ValueError("Latest release is not a stable semantic version")
     base = "https://github.com/" + REPOSITORY + "/releases/download/" + tag + "/"
+    if any(not isinstance(a, dict) or not isinstance(a.get("name"), str)
+           or not isinstance(a.get("browser_download_url"), str) for a in release["assets"]):
+        raise ValueError("Invalid stable release asset")
     assets = {a["name"]: a["browser_download_url"] for a in release["assets"]}
+    if "release.json" not in assets:
+        raise NoStableRelease("Latest stable release has no portable package; publish ZIP and release.json before automatic upgrades")
     if assets.get("release.json") != base + "release.json":
         raise ValueError("Stable release has no canonical release.json")
-    metadata = json.loads(download(assets["release.json"], 16000))
+    metadata = json.loads(download(assets["release.json"], 16000, timeout))
+    if not isinstance(metadata, dict):
+        raise ValueError("Invalid stable release metadata")
     archive = metadata.get("archive", "")
     if (metadata.get("repository") != REPOSITORY or metadata.get("version") != tag[1:]
             or metadata.get("contract_version") != 1
             or not re.fullmatch(r"unreal-mcp-\d+\.\d+\.\d+\.zip", archive)
+            or archive != "unreal-mcp-" + tag[1:] + ".zip"
             or not re.fullmatch(r"[a-f0-9]{64}", metadata.get("sha256", ""))
             or assets.get(archive) != base + archive):
         raise ValueError("Invalid stable release metadata")
