@@ -1,5 +1,24 @@
 # Contributing
 
+## Structured experience contributions (v3.17)
+
+Experiences go directly to the original dadongoba/unreal-mcp-skill repository.
+See [the contribution runtime](references/experience-contribution.md) for explicit
+opt-in, local-only mode, privacy boundaries and task completion integration.
+The owner installs the intake workflow on master and enables Actions PR creation.
+Contributors do not need a fork or repository write access.
+
+Raw submissions may be unresolved observations or reporter-verified cases.
+The default-branch workflow validates JSON DATA and writes only a single inbox
+record to a submission branch, then opens a draft PR. It never executes submitted
+code or promotes the prose into skill instructions. Public Issue submission
+happens after local redaction and is already public before review.
+
+Reproduction and confidence tagging below apply when promoting an inbox record
+to formal rules/templates. Individual incoming records do not bump the skill
+version or modify the lawbook. Keep private project terms and actual assets out
+of the payload; a generic minimum reproduction is more useful.
+
 This skill grows from **verified failures**. The most valuable contribution is a
 `[VERIFIED]` lesson from a real UE session.
 
@@ -7,7 +26,8 @@ This skill grows from **verified failures**. The most valuable contribution is a
 
 1. During a session: accumulate draft notes (one line each) — do not edit skill files mid-task.
 2. At milestones (session end / ≥5 lessons): batch-commit into the matching capability doc
-   or SKILL.md lawbook, update cross-references + version, one backup + one repackage.
+   or references/core-workflows.md lawbook, update cross-references + release
+   metadata, one backup + one repackage.
 3. **Only commit after verification succeeds** — unverified guesses do not belong in the lawbook.
 
 ## Confidence tags (mandatory)
@@ -38,7 +58,7 @@ When practice contradicts a `[VERIFIED]` entry twice → mark it `[STALE]` and f
 - [ ] `python3 scripts/refresh_schemas.py` reports **0 DRIFT** (offline cross-check
       between tool_schemas.md and capability docs)
 - [ ] Python scripts are stdlib-only and ASCII-safe; PowerShell scripts are PS5.1-compatible
-- [ ] SKILL.md version bumped + CHANGELOG.md entry added
+- [ ] Formal releases update SKILL.md version + CHANGELOG.md; inbox submissions do not
 
 ## Trademark note
 

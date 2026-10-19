@@ -6,6 +6,8 @@ __pycache__/
 # machine-local state (never share)
 ue_connect_state.json
 *.local.json
+runtime.sqlite*
+.unreal-mcp/
 
 # backups / editor droppings
 *.bak

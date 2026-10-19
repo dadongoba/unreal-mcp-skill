@@ -147,35 +147,14 @@ def offline_check(sd):
 def live_check(schemas, url):
     print("")
     print("=== LIVE PULL: describe_toolset x {} (UE must be running) ===".format(len(TOOLSETS)))
-    import urllib.request
-    MCP = url
-
-    def post(body, headers=None, timeout=120):
-        data = body.encode("utf-8")
-        h = {"Content-Type": "application/json"}
-        if headers:
-            h.update(headers)
-        req = urllib.request.Request(MCP, data=data, headers=h, method="POST")
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return r.read().decode("utf-8"), dict(r.headers)
-
-    init = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize",
-                       "params": {"protocolVersion": "2024-11-05", "capabilities": {},
-                                  "clientInfo": {"name": "codely", "version": "1.0"}}})
-    _, h1 = post(init, timeout=10)
-    sid = h1.get("Mcp-Session-Id") or h1.get("mcp-session-id")
-    headers = {"Mcp-Session-Id": sid} if sid else {}
-    post(json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}), headers, timeout=5)
+    from snapshot_toolsets import Client
+    client = Client(url)
+    client.connect()
 
     live_map = {}
     for ts in TOOLSETS:
-        inner = {"tool_name": "describe_toolset", "arguments": {"toolset_name": ts}}
-        body = json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/call",
-                           "params": {"name": "call_tool", "arguments": inner}})
         try:
-            text, _ = post(body)
-            j = json.loads(text)
-            txt = j["result"]["content"][0]["text"]
+            txt = client.call("describe_toolset", {"toolset_name": ts})
             sigs = re.findall(r'"name"\s*:\s*"([^"]+)"\s*,\s*"inputSchema"\s*:\s*(\{"type":"object".*?\})', txt)
             for name, schema in sigs:
                 n = name.split(".")[-1]
@@ -190,6 +169,7 @@ def live_check(schemas, url):
             print("{} FAILED: {}".format(ts, e))
 
     print("")
+    client.close()
     print("=== LIVE vs tool_schemas.md diff ===")
     ld = lw = 0
     for t in sorted(live_map):
@@ -213,13 +193,21 @@ def live_check(schemas, url):
 def main():
     ap = argparse.ArgumentParser(description="Cross-platform schema drift guard")
     ap.add_argument("--live", action="store_true", help="also pull live UE schemas")
-    ap.add_argument("--url", default="http://127.0.0.1:8000/mcp", help="MCP server URL")
+    ap.add_argument("--url", help="MCP server URL")
+    ap.add_argument("--instance")
+    ap.add_argument("--state-dir")
     args = ap.parse_args()
 
     sd = skill_dir()
     schemas = offline_check(sd)
     if args.live:
-        live_check(schemas, args.url)
+        from ue_mcp.instances import Store
+        store = Store(args.state_dir)
+        try:
+            url = store.resolve(args.instance, args.url)["url"]
+        finally:
+            store.close()
+        live_check(schemas, url)
     else:
         print("")
         print("(offline mode only - add --live with UE running to also diff live server schemas)")
