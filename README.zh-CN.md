@@ -2,13 +2,13 @@
 
 [English](README.md) · **简体中文**
 
-> 一个经过实战检验的 **Codely CLI 技能**，通过编辑器内置的 MCP 服务器驱动 **Unreal Engine 5.8+** —— 蓝图编写、场景搭建、材质、Niagara、Sequencer、PCG 等，全部用自然语言完成。
+> 一个面向不同 AI 客户端的 **标准 Agent Skill 与 MCP 运行时**，通过 UE 内置 MCP 操作 **Unreal Engine 5.8+** 的蓝图、场景、材质、动画、物理和界面。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## 这是什么
 
-一个知识密集型的技能（不是插件——不含引擎代码），面向通过 Epic 的 **ModelContextProtocol** 工具集操作 UE 的 [Codely CLI](https://codely-docs.tuanjie.cn) 智能体（实际工具集取决于引擎版本和启用的插件）：
+一个可移植的知识包与 Python 运行时，通过 Epic 的 **ModelContextProtocol** 工具集操作 UE（实际工具集取决于引擎版本和启用的插件）。不同客户端可以使用 MCP、原生 Skills 或命令行接入：
 
 - **蓝图 DSL 工作流** —— 创建蓝图、变量、函数、跨蓝图调用、编译、PIE 验证；一套类 Scheme 的 DSL（`write_graph_dsl`），含 27 条实战验证过的语法法则
 - **场景 / 物理 / 碰撞** —— 组件选取规则、触发器模式、运行时物理激活
@@ -21,11 +21,15 @@
 
 ## 快速开始
 
-1. **安装技能** —— 把本目录复制到你的 Codely 技能目录：
-   ```
-   Windows: C:\Users\<你>\.codely-cli\skills\unreal-mcp
-   macOS:   ~/.codely-cli/skills/unreal-mcp
-   ```
+1. **安装共享运行时**，在可信的仓库目录执行：
+   ~~~text
+   python scripts/unreal_mcp.py install --source .
+   python scripts/unreal_mcp.py config
+   python scripts/unreal_mcp.py doctor
+   ~~~
+   将生成的配置按客户端要求接入 MCP。支持 Skills 的客户端再安装小型入口：
+   `python scripts/unreal_mcp.py adapter --skill-dir <客户端技能目录>/unreal-mcp`。
+   详见[通用运行时与接入标准](references/universal-runtime.md)。
 2. **准备一个 UE5.8+ 项目**，其 `.uproject` 需启用以下插件（技能可在你同意后自动添加）：
    `ModelContextProtocol` · `ToolsetRegistry` · `EditorToolset` · `PythonScriptPlugin` · `AllToolsets`
 3. **注册目标编辑器**，需要 Python 3.10+，运行库仅使用标准库：
@@ -36,7 +40,13 @@
    ~~~
    多个编辑器使用[多实例连接](references/multi-instance.md)。受管写操作必须先绑定任务；旧版直接写调用需要迁移。
 
-## v3.17 运行层
+## v3.18 共享运行层
+
+- 提供标准 MCP stdio 和带认证的本机 HTTP 接口，核心不依赖特定 AI 软件。
+- 任务归属各自 MCP 会话；不支持 Skills 的客户端也可检索、读取正式知识。
+- 核心统一安装，客户端仅保留小型入口；提供诊断和版本检查。
+- 安装校验文件清单与摘要，任务中禁止切换版本，可回退上一包。
+- 社区经验经过候选、复现、审核和发布，再进入各客户端使用的知识库。
 
 - 按实例和项目协调写入，校验监听进程身份，分别建立会话。
 - 支持 JSON/SSE，区分工具错误；写入结果未知时不盲目重放。
@@ -51,7 +61,8 @@
 验证范围：模拟 HTTP/SSE 与本地状态回归测试；真实双 UE 和公开入库链路仍需部署验证。
 
 
-> 启动顺序很重要：**先开 UE，再开 Codely**（Codely 只会在自身启动时发现 MCP 工具）。即使顺序搞反了，技能里的 `mcp_call.py` 兜底方案也能让你继续干活。
+桥接服务可先于 UE 启动；开始编辑任务前，需要注册目标实例并启动 UE。
+修改 MCP 配置或切换运行版本后，重新连接客户端。工具发现时机由具体宿主决定。
 
 ## ⚠️ 已知限制：请使用英文版编辑器界面
 

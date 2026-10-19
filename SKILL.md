@@ -5,11 +5,26 @@ description: >-
   instances, author and verify Blueprints, scenes, physics, materials, Niagara,
   Sequencer, ControlRig, PCG and UMG. Includes local experience capture and
   explicitly opted-in contributions to dadongoba/unreal-mcp-skill.
+metadata:
+  version: "3.18.0"
 ---
 
 # Unreal MCP
 
-skill_version: 3.17.0
+skill_version: 3.18.0
+
+## Client-neutral access
+
+Any host with compatible MCP tools can use the same runtime. With the bridge
+connected, use ue_knowledge_read to load this file and the relevant references;
+ue_begin_task, ue_call and ue_finish_task share the command-line runtime's
+instance locks, identity checks and contribution preferences. Task IDs belong
+to their originating MCP session. Reconnecting requires a new task binding.
+
+Read [Universal runtime](references/universal-runtime.md) for shared installation,
+stdio/HTTP setup, capability-based compatibility, diagnostics, releases and
+rollback. Skill-loading paths and client configuration are adapter concerns.
+No specific AI product is required. Hosts without MCP may use the CLI below.
 
 ## Select the target and implementation
 

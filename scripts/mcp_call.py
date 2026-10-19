@@ -5,8 +5,9 @@ import json
 from pathlib import Path
 import sys
 
-from ue_mcp.instances import InstanceError, Store, process_identity
-from ue_mcp.transport import Client, MCPError, READ_TOOLS, TransportError
+from ue_mcp.instances import InstanceError, Store
+from ue_mcp.runtime import call
+from ue_mcp.transport import MCPError, READ_TOOLS, TransportError
 
 
 def main():
@@ -28,7 +29,6 @@ def main():
     store = Store(args.state_dir)
     writing = args.script_path or args.tool not in READ_TOOLS
     try:
-        profile = store.resolve(args.instance, args.url)
         if not 1 <= args.timeout <= 120:
             raise InstanceError("Timeout must be 1-120 seconds (below the task lease duration)")
         if args.script_path:
@@ -40,16 +40,8 @@ def main():
                                    if args.args_file else args.args or "{}")
         if not isinstance(arguments, dict):
             raise ValueError("Tool arguments must be a JSON object")
-        if writing:
-            with store.write_guard(profile, args.task_id) as identity:
-                with Client(profile["url"], timeout=args.timeout) as client:
-                    # Re-check after initialize: a port may have changed owner during the handshake.
-                    if process_identity(profile["url"], profile["project"]) != identity:
-                        raise InstanceError("Editor changed during initialize; no write was sent")
-                    result = client.call(tool, arguments, toolset)
-        else:
-            with Client(profile["url"], timeout=args.timeout) as client:
-                result = client.call(tool, arguments, toolset)
+        result = call(store, tool, arguments, args.instance, args.task_id, toolset,
+                      args.url, args.timeout)
         text = json.dumps({"jsonrpc": "2.0", "result": result}, ensure_ascii=False)
         if args.out_file:
             Path(args.out_file).write_text(text, encoding="utf-8")

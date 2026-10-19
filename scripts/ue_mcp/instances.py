@@ -225,7 +225,7 @@ class Store:
         if not 180 <= seconds <= 86400:
             raise InstanceError("Task leases must be between 180 and 86400 seconds")
         binding = json.dumps(identity, sort_keys=True)
-        with self.transaction():
+        with self.file_lock("package-activation"), self.transaction():
             old = self.db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
             if old and (old["status"] != "active" or old["expires"] <= time.time()
                         or old["instance"] != profile["name"] or old["binding"] != binding):

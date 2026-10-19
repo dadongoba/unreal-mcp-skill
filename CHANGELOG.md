@@ -3,6 +3,16 @@
 All notable changes to this skill. Format: one version block per batch; the authoritative
 runtime version lives in SKILL.md and domain facts live in references.
 
+## v3.18.0 (2026-10-19)
+
+- Client-neutral MCP server over stdio and authenticated loopback Streamable HTTP.
+- Shared guarded execution/finalization for MCP and CLI; session-owned tasks.
+- Published knowledge search/read tools for hosts without native Skill loading.
+- Versioned shared packages, per-file manifests, checksummed releases, activation,
+  active-task upgrade guards, rollback and small identical host adapters.
+- Explicit candidate/reproduction/promotion workflow for community knowledge.
+- Portable release workflow and cross-client/package regression coverage.
+
 ## v3.17.0 (2026-10-19)
 - Independent local editor registrations and explicit target selection; instance
   and project task leases, listener identity checks, crash-released call locks.
