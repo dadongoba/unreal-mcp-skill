@@ -41,7 +41,7 @@ Every rule carries a confidence tag: `[VERIFIED <date> UE<ver>-<lang>]` (PIE-pro
    Use [independent instances](references/multi-instance.md) for multiple editors.
    Managed writes require a task binding; existing raw write calls must migrate.
 
-## v3.20 automatic upstream plugin setup (unreleased)
+## v3.20 automatic upstream plugin setup
 
 - ue_setup_project detects the selected engine and automatically installs or
   updates a matching stable GitHub plugin, with SHA256/provenance/BuildId checks.
