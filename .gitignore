@@ -16,6 +16,7 @@ runtime.sqlite*
 *.log
 .DS_Store
 Thumbs.db
+dist/
 
 # user-specific scratch (regenerate via refresh_schemas)
 schemas_refresh_*.txt

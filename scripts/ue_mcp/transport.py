@@ -13,6 +13,11 @@ READ_TOOLS = frozenset({"list_toolsets", "describe_toolset"})
 MAX_RESPONSE = 16 * 1024 * 1024
 
 
+def is_discovery(tool, toolset=None):
+    # A toolset can define a same-named tool with arbitrary side effects.
+    return tool in READ_TOOLS and not toolset
+
+
 class MCPError(RuntimeError):
     pass
 
@@ -22,7 +27,15 @@ class TransportError(MCPError):
 
 
 class ToolError(MCPError):
-    pass
+    def __init__(self, message, result=None):
+        self.result = result
+        super().__init__(message)
+
+
+def tool_error(message, value):
+    details = "\n".join(item.get("text", "") for item in value.get("content", [])
+                        if isinstance(item, dict) and item.get("type") == "text")
+    return ToolError(message + (": " + details[:2000] if details else ""), value)
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -33,7 +46,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 def check_result(value):
     if isinstance(value, dict):
         if value.get("isError") is True:
-            raise ToolError("UE reported isError=true; inspect the local response")
+            raise tool_error("UE reported isError=true", value)
         for item in value.get("content", []):
             if item.get("type") == "text":
                 try:
@@ -41,7 +54,7 @@ def check_result(value):
                 except (ValueError, TypeError):
                     continue
                 if isinstance(nested, dict) and nested.get("isError") is True:
-                    raise ToolError("UE returned a nested tool error")
+                    raise tool_error("UE returned a nested tool error", value)
     return value
 
 

@@ -1,6 +1,6 @@
 # Contributing
 
-## Structured experience contributions (v3.17)
+## Structured experience contributions
 
 Experiences go directly to the original dadongoba/unreal-mcp-skill repository.
 See [the contribution runtime](references/experience-contribution.md) for explicit
@@ -18,6 +18,11 @@ Reproduction and confidence tagging below apply when promoting an inbox record
 to formal rules/templates. Individual incoming records do not bump the skill
 version or modify the lawbook. Keep private project terms and actual assets out
 of the payload; a generic minimum reproduction is more useful.
+
+Use the v3.18 [candidate and promotion commands](references/universal-runtime.md#experience-to-published-knowledge)
+to preserve reporter evidence separately from maintainer reproduction. CI checks
+published JSON entries. Review and merge before tagging a portable runtime release;
+updates make the same published knowledge available to every compatible client.
 
 This skill grows from **verified failures**. The most valuable contribution is a
 `[VERIFIED]` lesson from a real UE session.

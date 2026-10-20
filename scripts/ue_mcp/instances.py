@@ -169,13 +169,16 @@ class Store:
         return {row["name"]: json.loads(row["data"]) for row in self.db.execute(
             "SELECT name,data FROM instances ORDER BY name")}
 
-    def register(self, name, project, url=DEFAULT_URL, engine=None):
+    def register(self, name, project, url=DEFAULT_URL, engine=None, backend="epic-toolsets"):
+        from .backends import BACKENDS
+        if backend not in BACKENDS:
+            raise InstanceError("Unknown backend; choose " + ", ".join(BACKENDS))
         valid_id(name)
         path = Path(project).expanduser().resolve()
         if path.suffix.lower() != ".uproject" or not path.is_file():
             raise InstanceError("Registration requires an existing .uproject file")
         profile = {"name": name, "project": canonical(path), "url": endpoint(url),
-                   "engine": canonical(engine) if engine else None}
+                   "engine": canonical(engine) if engine else None, "backend": backend}
         with self.transaction():
             if self.db.execute("SELECT 1 FROM tasks WHERE instance=? AND status='active' AND expires>?",
                                (name, time.time())).fetchone():
@@ -225,7 +228,7 @@ class Store:
         if not 180 <= seconds <= 86400:
             raise InstanceError("Task leases must be between 180 and 86400 seconds")
         binding = json.dumps(identity, sort_keys=True)
-        with self.transaction():
+        with self.file_lock("package-activation"), self.transaction():
             old = self.db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
             if old and (old["status"] != "active" or old["expires"] <= time.time()
                         or old["instance"] != profile["name"] or old["binding"] != binding):

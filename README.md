@@ -2,13 +2,13 @@
 
 **English** · [简体中文](README.zh-CN.md)
 
-> A battle-tested **Codely CLI skill** that drives **Unreal Engine 5.8+** through the editor's built-in MCP server — blueprint authoring, scene building, materials, Niagara, Sequencer, PCG and more, all from natural language.
+> A **client-neutral Agent Skill and MCP runtime** for Unreal Engine, with Epic Toolsets and native HTTP backend adapters. Real-editor validation: UE 5.8.3; UE 5.7 adapters currently have protocol-test coverage only.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## What it is
 
-A knowledge-packed skill (not a plugin — no engine code) for [Codely CLI](https://codely-docs.tuanjie.cn) agents operating UE via Epic's **ModelContextProtocol** toolsets (the available toolsets depend on engine version and enabled plugins):
+A portable knowledge package and Python runtime operating UE via Epic's **ModelContextProtocol** toolsets (available toolsets depend on engine version and enabled plugins). Compatible hosts can use standard MCP tools, native Skills or the command-line helpers:
 
 - **Blueprint DSL workflows** — create BPs, variables, functions, cross-BP calls, compile, PIE-verify; a Scheme-like DSL (`write_graph_dsl`) with 27 battle-tested syntax laws
 - **Scene / physics / collision** — component selection rules, trigger patterns, runtime physics activation
@@ -21,11 +21,15 @@ Every rule carries a confidence tag: `[VERIFIED <date> UE<ver>-<lang>]` (PIE-pro
 
 ## Quick start
 
-1. **Install the skill** — copy this folder to your Codely skills directory:
-   ```
-   Windows: C:\Users\<you>\.codely-cli\skills\unreal-mcp
-   macOS:   ~/.codely-cli/skills/unreal-mcp
-   ```
+1. **Install the shared runtime** from a trusted checkout, then generate the MCP configuration:
+   ~~~text
+   python scripts/unreal_mcp.py install --source .
+   python scripts/unreal_mcp.py config
+   python scripts/unreal_mcp.py doctor
+   ~~~
+   For hosts with native Skills, add the small shared adapter:
+   `python scripts/unreal_mcp.py adapter --skill-dir <CLIENT_SKILLS_DIRECTORY>/unreal-mcp`.
+   See [universal setup and compatibility](references/universal-runtime.md).
 2. **Ensure a UE5.8+ project** whose `.uproject` enables these plugins (the skill can add them with your consent):
    `ModelContextProtocol` · `ToolsetRegistry` · `EditorToolset` · `PythonScriptPlugin` · `AllToolsets`
 3. **Register the intended editor** using Python 3.10+ (standard library only):
@@ -37,7 +41,33 @@ Every rule carries a confidence tag: `[VERIFIED <date> UE<ver>-<lang>]` (PIE-pro
    Use [independent instances](references/multi-instance.md) for multiple editors.
    Managed writes require a task binding; existing raw write calls must migrate.
 
-## v3.17 runtime
+## v3.20 automatic upstream plugin setup
+
+- ue_setup_project detects the selected engine and automatically installs or
+  updates a matching stable GitHub plugin, with SHA256/provenance/BuildId checks.
+- Upstream Releases are refreshed daily when setup is used. Future matching 5.6
+  or earlier assets from the reviewed provider can be discovered; absent assets
+  are not advertised as supported. No background watcher is installed.
+- Per-project backups/ports, no silent overwrites or editor shutdown, and a
+  read-only ue_plugin_status tool. [Setup details](references/plugin-setup.md).
+
+## Backend and update discovery
+
+- Inspect live tool schemas with ue_capabilities; select Epic, Avatar or explicit
+  native MCP dispatch. [Compatibility and evidence](references/backends.md).
+- ue_status checks the original repository's stable release once per 24 hours,
+  shared across clients. ue_check_update supports fresh/offline checks. Failed
+  checks remain unknown; historical Releases without portable assets are unpublished.
+- Detection does not install anything. Active/running package identity, upgrade
+  guards and rollback remain separate. [Update discovery](references/update-discovery.md).
+
+## Shared runtime
+
+- MCP stdio and authenticated loopback HTTP; no particular AI client required.
+- Session-owned task lifecycle and published knowledge tools for MCP-only hosts.
+- One local core package with small client adapters, diagnostics and version checks.
+- Manifest-verified upgrades, active-task guards and previous-version rollback.
+- Reviewed experience promotion and portable release automation.
 
 - Independent instance/project ownership, listener identity checks and separate sessions.
 - JSON/SSE transport and explicit errors; uncertain writes are never blindly replayed.
@@ -50,11 +80,15 @@ Actions PR creation before inbox PRs can be created. Default contribution mode
 is local; every user chooses whether to enable public uploading. See
 [contribution setup](references/experience-contribution.md).
 
-Validation: simulated HTTP/SSE and local-state regression tests; live dual-UE
-operation and end-to-end public intake still require deployment validation.
+Validation: simulated HTTP/SSE, local-state regressions, official SDK interop,
+and a [real Windows UE 5.8.3 dual-editor run](references/validation/ue583-dual-editor-20261019.md)
+covering routing, Blueprint save/readback and PIE in NullRHI mode. Rendering,
+map persistence and end-to-end public intake are outside that verified coverage.
 
 
-> Startup order matters: **UE first, then Codely** (Codely discovers MCP tools only at its own startup). The skill's `mcp_call.py` fallback keeps you working even if the order was wrong.
+The bridge can start before UE; register the intended instance and start UE before
+beginning an editor task. Reconnect a client after changing its MCP configuration
+or activating a new runtime. Discovery behavior depends on the host.
 
 ## ⚠️ Known limitation: use the ENGLISH editor interface
 

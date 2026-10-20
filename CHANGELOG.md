@@ -1,7 +1,48 @@
 # Changelog
 
 All notable changes to this skill. Format: one version block per batch; the authoritative
-runtime version lives in SKILL.md and domain facts live in references.
+runtime version lives in scripts/ue_mcp/__init__.py and domain facts live in references.
+
+## v3.20.0 (2026-10-20)
+
+- Automatic project setup detects UE version and discovers matching stable
+  release artifacts from the reviewed native HTTP provider. Future earlier-UE
+  assets can be selected without pinning discovery to UE 5.7 or one release.
+- Validate GitHub SHA256, archive paths/limits, descriptor, provenance, DLL and
+  engine binary BuildId. No cross-version binary substitution or shared plugin.
+- Project-only activation/enabling, per-instance ports, managed upgrade backups,
+  no downgrade, local-edit protection and rollback on failed project save.
+- Never stop an editor; defer installation/update for an open project and block
+  active tasks. Expose read-only upstream status separately from mutating setup.
+
+## v3.19.0 (included in v3.20.0)
+
+- Live backend schema discovery and guarded dispatch for Epic Toolsets, Avatar's
+  UE 5.7 native HTTP contract and explicitly selected native MCP tools. Automatic
+  recognition refuses unknown or ambiguous schemas, including discriminated actions.
+- Keep external sidecar/stdin plugin candidates distinct from supported direct
+  editor listeners; document the missing identity/routing work and UE test evidence.
+- Shared 24-hour automatic stable-release checks in ue_status, explicit MCP/CLI
+  refresh/offline modes, one-hour failure backoff and truthful unknown/unpublished
+  states. Checks do not install updates or send project/experience content.
+- Detect stale running packages even when version numbers match. Historical
+  source-only Releases do not masquerade as portable update packages.
+- New regression tests cover HTTP dispatch, ownership and post-discovery identity,
+  pagination, release comparison/cache/failures, and MCP status integration.
+
+## v3.18.0 (2026-10-19)
+
+- Client-neutral MCP server over stdio and authenticated loopback Streamable HTTP.
+- Shared guarded execution/finalization for MCP and CLI; session-owned tasks.
+- Published knowledge search/read tools for hosts without native Skill loading.
+- Versioned shared packages, per-file manifests, checksummed releases, activation,
+  active-task upgrade guards, rollback and small identical host adapters.
+- Explicit candidate/reproduction/promotion workflow for community knowledge.
+- Portable release workflow and cross-client/package regression coverage.
+- Live Windows UE 5.8.3 dual-editor routing, Blueprint compile/save and PIE
+  behavior verified in NullRHI mode; map duplication/save failure documented.
+- Keep adapter backups outside Skill discovery, preserve bounded UE error
+  diagnostics, and release HTTP session tasks on normal server shutdown.
 
 ## v3.17.0 (2026-10-19)
 - Independent local editor registrations and explicit target selection; instance

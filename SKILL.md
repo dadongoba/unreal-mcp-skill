@@ -1,15 +1,36 @@
 ---
 name: unreal-mcp
 description: >-
-  Operate Unreal Engine 5.8+ through its MCP server: connect independent editor
+  Operate Unreal Engine through supported MCP backends: connect independent editor
   instances, author and verify Blueprints, scenes, physics, materials, Niagara,
   Sequencer, ControlRig, PCG and UMG. Includes local experience capture and
   explicitly opted-in contributions to dadongoba/unreal-mcp-skill.
+metadata:
+  version: "3.20.0"
 ---
 
 # Unreal MCP
 
-skill_version: 3.17.0
+skill_version: 3.20.0
+
+## Client-neutral access
+
+Start with ue_status: it includes running/active versions and a cached stable
+release check. Report available updates or required reconnection briefly. Offline
+or failed checks are unknown, never proof of being current. Checking does not
+install anything; finish active tasks before an authorized upgrade. Read
+[update discovery](references/update-discovery.md) for cache, channels and CLI.
+
+Any host with compatible MCP tools can use the same runtime. With the bridge
+connected, use ue_knowledge_read to load this file and the relevant references;
+ue_begin_task, ue_call and ue_finish_task share the command-line runtime's
+instance locks, identity checks and contribution preferences. Task IDs belong
+to their originating MCP session. Reconnecting requires a new task binding.
+
+Read [Universal runtime](references/universal-runtime.md) for shared installation,
+stdio/HTTP setup, capability-based compatibility, diagnostics, releases and
+rollback. Skill-loading paths and client configuration are adapter concerns.
+No specific AI product is required. Hosts without MCP may use the CLI below.
 
 ## Select the target and implementation
 
@@ -18,6 +39,24 @@ Before modifying UE, identify the project and editor instance. Read
 process identity, task ownership and startup. Several registered instances
 require an explicit target. A successful MCP handshake alone does not identify
 the project.
+
+For a new endpoint call ue_capabilities(instance) and read
+[backend compatibility](references/backends.md). Inspect the actual schemas;
+engine version or a successful handshake does not establish tool compatibility.
+The domain documents and Blueprint DSL below describe Epic Toolsets on UE 5.8;
+apply them to a backport only after checking the specific toolset/schema. Other
+backends use their own tools, arguments and verification. Do not translate DSL
+into arbitrary Python or claim missing capabilities exist.
+
+When the user is setting up or connecting an explicitly selected project, use
+ue_setup_project(instance, project, engine, port?) or ue_connect.py setup. It
+detects the engine, checks the reviewed upstream's stable release catalog, and
+automatically downloads/installs a matching plugin when needed. This includes
+future 5.6/earlier assets only if their version/platform/provenance/BuildId match.
+Never infer a download target from a port alone. Read-only inspection uses
+ue_plugin_status and does not install. See [plugin setup](references/plugin-setup.md).
+An open editor, local plugin edits, a conflicting existing plugin or an unknown
+build must be reported; do not close editors or weaken checks to force an update.
 
 For a feature, choose C++ versus MCP/Blueprint by change radius and build plus
 verification cost. Runtime algorithms and reusable typed APIs often suit C++;

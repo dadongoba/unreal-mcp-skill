@@ -23,5 +23,9 @@ jobs:
         run: python -X utf8 -m unittest discover -s tests -v
       - name: Check Python syntax
         run: python -X utf8 -m compileall -q scripts
+      - name: Verify official MCP client interoperability
+        run: |
+          python -m pip install mcp==2.3.0
+          python -X utf8 tests/sdk_interop.py
       - name: Check documented schemas
         run: python -X utf8 scripts/refresh_schemas.py

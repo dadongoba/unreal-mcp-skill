@@ -1,0 +1,32 @@
+name: Publish portable runtime
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify runtime and published knowledge
+        run: python -X utf8 -m unittest discover -s tests -v
+      - name: Build portable package
+        run: python scripts/unreal_mcp.py build --output dist/unreal-mcp-$(python -c 'import sys;sys.path.insert(0,"scripts");from ue_mcp import VERSION;print(VERSION)').zip
+      - name: Validate release tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: python -c 'import os,json; m=json.load(open("dist/release.json")); assert os.environ["GITHUB_REF_NAME"] == "v"+m["version"]'
+      - name: Publish source-bound artifacts
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/*.zip dist/release.json --verify-tag --generate-notes
+    permissions:
+      contents: write

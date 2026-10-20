@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Finalize local experience; explicitly opt in to publishing to the original repository."""
 import argparse
-import getpass
 import json
 from pathlib import Path
 import sys
 
 from ue_mcp.experience import ExperienceError, Queue
 from ue_mcp.instances import InstanceError, Store
+from ue_mcp.runtime import finalize as finalize_task
 
 
 def main():
@@ -49,25 +49,14 @@ def main():
             print(json.dumps({"status": row["status"], "flags": row["error"],
                               "record": json.loads(row["payload"])}, ensure_ascii=False, indent=2))
         elif args.cmd == "finalize":
-            task = store.db.execute("SELECT instance FROM tasks WHERE id=?", (args.task_id,)).fetchone()
-            if task and args.instance and task["instance"] != args.instance:
-                raise ExperienceError("Privacy instance disagrees with the task binding")
-            selected = args.instance or (task["instance"] if task else None)
-            profile = store.resolve(selected) if selected or store.profiles() else None
-            terms = [str(Path.home()), getpass.getuser()]
-            for registered in store.profiles().values():
-                terms += [registered["project"], Path(registered["project"]).stem]
-                if registered.get("engine"):
-                    terms.append(registered["engine"])
+            extra = []
             if args.redact_file:
                 extra = json.loads(Path(args.redact_file).read_text(encoding="utf-8-sig"))
                 if not isinstance(extra, list) or not all(isinstance(item, str) for item in extra):
                     raise ExperienceError("--redact-file must be a JSON array of private words")
-                terms += extra
-            row = queue.finalize(args.task_id, json.loads(Path(args.record_file).read_text(encoding="utf-8-sig")),
-                                 terms, profile["project"] if profile else None)
-            if queue.config()["mode"] == "auto" and row["status"] == "queued":
-                row = queue.publish(row["id"])
+            row = finalize_task(store, args.task_id,
+                           json.loads(Path(args.record_file).read_text(encoding="utf-8-sig")),
+                           args.instance, extra)
             print(json.dumps({key: value for key, value in row.items()
                               if key not in {"payload", "source_project"}}, indent=2))
         elif args.cmd == "publish":
