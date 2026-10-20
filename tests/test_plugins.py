@@ -39,7 +39,7 @@ def bundle(version="0.6.1", engine="5.7", build_id="test-build", extra=None):
 class PluginTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.project = self.root / "Project/Example.uproject"
         self.project.parent.mkdir()
         self.project.write_text('{"EngineAssociation":"5.7","Description":"keep me"}')
