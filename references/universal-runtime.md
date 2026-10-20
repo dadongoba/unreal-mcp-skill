@@ -119,7 +119,7 @@ Never expose the raw UE port or token through a public unauthenticated tunnel.
 ## Releases, checks and rollback
 
 ~~~text
-python scripts/unreal_mcp.py build --output dist/unreal-mcp-3.19.0.zip
+python scripts/unreal_mcp.py build --output dist/unreal-mcp-3.20.0.zip
 python scripts/unreal_mcp.py install --archive <ZIP> --sha256 <TRUSTED_SHA256>
 python <SHARED_HOME>/launch.py check
 python <SHARED_HOME>/launch.py update

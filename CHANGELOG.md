@@ -3,6 +3,18 @@
 All notable changes to this skill. Format: one version block per batch; the authoritative
 runtime version lives in scripts/ue_mcp/__init__.py and domain facts live in references.
 
+## v3.20.0 (unreleased)
+
+- Automatic project setup detects UE version and discovers matching stable
+  release artifacts from the reviewed native HTTP provider. Future earlier-UE
+  assets can be selected without pinning discovery to UE 5.7 or one release.
+- Validate GitHub SHA256, archive paths/limits, descriptor, provenance, DLL and
+  engine binary BuildId. No cross-version binary substitution or shared plugin.
+- Project-only activation/enabling, per-instance ports, managed upgrade backups,
+  no downgrade, local-edit protection and rollback on failed project save.
+- Never stop an editor; defer installation/update for an open project and block
+  active tasks. Expose read-only upstream status separately from mutating setup.
+
 ## v3.19.0 (unreleased)
 
 - Live backend schema discovery and guarded dispatch for Epic Toolsets, Avatar's

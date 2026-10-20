@@ -76,8 +76,9 @@ def check(profile):
     return identity
 
 
-def launch(store, profile, fix=False):
-    if profile.get("backend", "epic-toolsets") != "epic-toolsets":
+def launch(store, profile, fix=False, report=print):
+    backend = profile.get("backend", "epic-toolsets")
+    if backend not in {"epic-toolsets", "avatar-unreal"}:
         raise InstanceError("Automatic launch/plugin edits are Epic-only; configure and start this backend using its own instructions")
     if not profile.get("project"):
         raise InstanceError("Register the project before launching an editor")
@@ -85,7 +86,7 @@ def launch(store, profile, fix=False):
     with store.file_lock("launch:" + profile["url"]), store.file_lock("project:" + profile["project"]):
         if listening(profile["url"]):
             process_identity(profile["url"], profile["project"])
-            print("The selected editor is already listening; run check")
+            report("The selected editor is already listening; run check")
             return 1
         # Reject a second process for the same project even while it is still loading.
         if project_is_running(profile["project"]):
@@ -93,18 +94,26 @@ def launch(store, profile, fix=False):
         binary = editor_binary(profile.get("engine"))
         if not binary:
             raise InstanceError("Register a valid --engine root for this instance")
-        missing, _ = audit_plugins(profile["project"])
+        missing, _ = audit_plugins(profile["project"]) if backend == "epic-toolsets" else ([], {})
+        if backend == "avatar-unreal":
+            from ue_mcp.plugins import installed
+            if not installed(Path(profile["project"]).parent / "Plugins/ModelContextProtocol"):
+                raise InstanceError("Run setup for this project before managed Avatar launch")
         if missing and not fix:
             raise InstanceError("Missing plugins: {}; use --fix-plugins if authorized".format(", ".join(missing)))
         if missing:
             fix_plugins(profile["project"])
         options = ({"creationflags": 0x00000008 | 0x00000200} if sys.platform == "win32"
                    else {"start_new_session": True})
-        child = subprocess.Popen([binary, profile["project"], "-ModelContextProtocolStartServer",
-                                  "-ModelContextProtocolPort={}".format(urlsplit(profile["url"]).port)],
+        argv = [binary, profile["project"]]
+        if backend == "epic-toolsets":
+            argv += ["-ModelContextProtocolStartServer", "-ModelContextProtocolPort={}".format(urlsplit(profile["url"]).port)]
+        else:
+            options["env"] = dict(os.environ, UE_MCP_PORT=str(urlsplit(profile["url"]).port))
+        child = subprocess.Popen(argv,
                                  stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                  stderr=subprocess.DEVNULL, **options)
-        print("Launched {} on {}; run wait in a separate shell call".format(child.pid, profile["url"]))
+        report("Launched {} on {}; run wait in a separate shell call".format(child.pid, profile["url"]))
         return 3
 
 
@@ -120,6 +129,15 @@ def main():
     register.add_argument("--engine")
     register.add_argument("--port", type=int)
     register.add_argument("--backend", choices=BACKENDS, default="epic-toolsets")
+    setup = sub.add_parser("setup", parents=[common])
+    setup.add_argument("--project", required=True)
+    setup.add_argument("--engine")
+    setup.add_argument("--port", type=int)
+    setup.add_argument("--force", action="store_true")
+    plugin_status = sub.add_parser("plugin-status", parents=[common])
+    plugin_status.add_argument("--project", required=True)
+    plugin_status.add_argument("--engine")
+    plugin_status.add_argument("--force", action="store_true")
     sub.add_parser("list", parents=[common])
     for name in ("check", "launch", "wait", "all"):
         parser = sub.add_parser(name, parents=[common])
@@ -137,6 +155,16 @@ def main():
     args = ap.parse_args()
     store = Store(args.state_dir)
     try:
+        if args.cmd in {"setup", "plugin-status"}:
+            from ue_mcp.plugins import setup, plan
+            if args.cmd == "setup":
+                if not args.instance:
+                    raise ValueError("Setup requires an explicit --instance")
+                value = setup(store, args.instance, args.project, args.engine, args.port, args.force)
+            else:
+                value = plan(store, args.project, args.engine, args.force)
+            print(json.dumps(value, ensure_ascii=False, indent=2))
+            return 0 if value["status"] in {"installed", "already_installed", "builtin_epic", "available"} else 3
         if args.cmd == "list":
             print(json.dumps(store.profiles(), indent=2))
             return 0

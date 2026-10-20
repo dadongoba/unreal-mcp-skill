@@ -41,7 +41,17 @@ Every rule carries a confidence tag: `[VERIFIED <date> UE<ver>-<lang>]` (PIE-pro
    Use [independent instances](references/multi-instance.md) for multiple editors.
    Managed writes require a task binding; existing raw write calls must migrate.
 
-## v3.19 backend and update discovery (unreleased)
+## v3.20 automatic upstream plugin setup (unreleased)
+
+- ue_setup_project detects the selected engine and automatically installs or
+  updates a matching stable GitHub plugin, with SHA256/provenance/BuildId checks.
+- Upstream Releases are refreshed daily when setup is used. Future matching 5.6
+  or earlier assets from the reviewed provider can be discovered; absent assets
+  are not advertised as supported. No background watcher is installed.
+- Per-project backups/ports, no silent overwrites or editor shutdown, and a
+  read-only ue_plugin_status tool. [Setup details](references/plugin-setup.md).
+
+## Backend and update discovery
 
 - Inspect live tool schemas with ue_capabilities; select Epic, Avatar or explicit
   native MCP dispatch. [Compatibility and evidence](references/backends.md).

@@ -6,12 +6,12 @@ description: >-
   Sequencer, ControlRig, PCG and UMG. Includes local experience capture and
   explicitly opted-in contributions to dadongoba/unreal-mcp-skill.
 metadata:
-  version: "3.19.0"
+  version: "3.20.0"
 ---
 
 # Unreal MCP
 
-skill_version: 3.19.0
+skill_version: 3.20.0
 
 ## Client-neutral access
 
@@ -47,6 +47,16 @@ The domain documents and Blueprint DSL below describe Epic Toolsets on UE 5.8;
 apply them to a backport only after checking the specific toolset/schema. Other
 backends use their own tools, arguments and verification. Do not translate DSL
 into arbitrary Python or claim missing capabilities exist.
+
+When the user is setting up or connecting an explicitly selected project, use
+ue_setup_project(instance, project, engine, port?) or ue_connect.py setup. It
+detects the engine, checks the reviewed upstream's stable release catalog, and
+automatically downloads/installs a matching plugin when needed. This includes
+future 5.6/earlier assets only if their version/platform/provenance/BuildId match.
+Never infer a download target from a port alone. Read-only inspection uses
+ue_plugin_status and does not install. See [plugin setup](references/plugin-setup.md).
+An open editor, local plugin edits, a conflicting existing plugin or an unknown
+build must be reported; do not close editors or weaken checks to force an update.
 
 For a feature, choose C++ versus MCP/Blueprint by change radius and build plus
 verification cost. Runtime algorithms and reusable typed APIs often suit C++;

@@ -40,7 +40,14 @@
    ~~~
    多个编辑器使用[多实例连接](references/multi-instance.md)。受管写操作必须先绑定任务；旧版直接写调用需要迁移。
 
-## v3.19 后端与更新发现（尚未发布）
+## v3.20 自动选择与更新上游插件（尚未发布）
+
+- ue_setup_project 识别目标 UE 版本，从已接入上游的稳定 GitHub Releases 自动选择、下载、安装或更新匹配包。
+- 使用时检查，每 24 小时刷新目录，也可强制刷新；未来同一上游发布符合约定的 5.6 或更早版本包时可自动发现，不将尚无安装包的版本宣称为已支持。
+- 校验 SHA256、包内来源记录和引擎二进制 BuildId，保留项目备份和独立端口；不覆盖本地修改，不关闭编辑器。
+- ue_plugin_status 只检查不安装；全新仓库或接口需适配。详见[插件安装与更新](references/plugin-setup.md)。
+
+## 后端与更新发现
 
 - 新增 ue_capabilities，根据实际工具 Schema 识别 Epic、Avatar，或显式使用原生 MCP 调用。详见[兼容范围与验证证据](references/backends.md)。
 - ue_status 自动检查原仓库的稳定 Release，多个客户端共享 24 小时缓存；ue_check_update 可立即刷新或离线读取。

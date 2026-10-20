@@ -54,8 +54,10 @@ from this runtime's ownership task_id. Wait for async completion and verify the
 result before ue_finish_task; do not release ownership while queued mutations
 still run. Native cancellation/Undo are not automatic rollback.
 
-Automatic launch and --fix-plugins remain Epic-only. They refuse other backends
-rather than adding Epic plugins or startup arguments to a third-party project.
+Automatic project setup now supports reviewed matching Avatar release packages;
+see [plugin setup](plugin-setup.md). Managed Avatar launch uses its per-process
+UE_MCP_PORT environment. --fix-plugins remains Epic-only; other native backends
+still require their own launch instructions.
 snapshot_toolsets.py / refresh_schemas.py --live are Epic-specific utilities.
 
 ## External bridge candidates: not yet managed backends

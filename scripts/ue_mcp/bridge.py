@@ -14,6 +14,7 @@ from .transport import MCPError, is_discovery, TransportError
 PROTOCOLS = ("2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25")
 INSTRUCTIONS = (
     "Start with ue_status for runtime/update status, then read ue_knowledge_read(path='SKILL.md'). "
+    "For authorized initial project setup/connect, ue_setup_project detects the engine and installs a matching reviewed upstream plugin. "
     "Check ue_capabilities for a new backend; tool schemas are not behavior certification. Select/register the intended "
     "UE instance, begin a task, use ue_call with that task_id, verify the UE result, then "
     "ue_finish_task even on failure. Supply only a generic experience record when useful. "
@@ -41,6 +42,14 @@ TOOLS = [
          ("instance", "project", "url"), False),
     tool("ue_capabilities", "Inspect live backend schemas for a registered editor. Does not certify tool behavior or UE-version support.",
          {"instance": text_rule(80)}, ("instance",)),
+    tool("ue_setup_project", "Set up an explicitly selected project: detect UE version, find matching stable GitHub plugin, verify SHA256, install/update managed plugin with backups and register an isolated port. Does not stop or launch editors; refuses local changes and active tasks.",
+         {"instance": text_rule(80), "project": text_rule(4096), "engine": text_rule(4096),
+          "port": {"type": "integer"}, "force": {"type": "boolean"}},
+         ("instance", "project"), False),
+    tool("ue_plugin_status", "Detect UE version and inspect matching upstream stable releases without installing. force bypasses the 24-hour catalog cache.",
+         {"project": text_rule(4096), "engine": text_rule(4096), "force": {"type": "boolean"}}, ("project",)),
+    tool("ue_launch_instance", "Launch the explicitly registered editor without stopping another process. Managed Avatar installs receive their own port environment; repeat calls do not spawn a second project editor.",
+         {"instance": text_rule(80)}, ("instance",), False),
     tool("ue_check_update", "Check the original repository's stable release, or read the shared cache. Never installs or activates updates.",
          {"force": {"type": "boolean"}, "offline": {"type": "boolean"}}),
     tool("ue_begin_task", "Verify the editor process and acquire exclusive instance/project ownership. Returns a new task_id.",
@@ -115,6 +124,17 @@ class Session:
                 return check_update(store.root, **args)
             if name == "ue_capabilities":
                 return runtime.capabilities(store, args["instance"])
+            if name == "ue_setup_project":
+                from .plugins import setup
+                return setup(store, **args)
+            if name == "ue_plugin_status":
+                from .plugins import plan
+                return plan(store, **args)
+            if name == "ue_launch_instance":
+                from ue_connect import launch
+                messages = []
+                code = launch(store, store.resolve(args["instance"]), report=messages.append)
+                return {"status": "launched" if code == 3 else "already_listening", "messages": messages}
             if name == "ue_experience_status":
                 queue = Queue(store)
                 return {"config": queue.config(), "counts": {
