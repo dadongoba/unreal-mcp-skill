@@ -98,6 +98,23 @@ references/ue_conventions.md for design conventions, and references/templates/
 for reusable cases. Query dictionaries with scripts/search_node_dict.py or
 scripts/search_ue_dict.ps1; avoid loading entire dictionaries into context.
 
+## Three access layers — route before acting
+
+Pick the layer by the job, not by preference. They complement, never replace, each other:
+
+| Layer | Entry | Use for |
+|---|---|---|
+| Knowledge | `ue_knowledge_read` / `launch.py knowledge read` | reading rules and references, no editor needed |
+| Live editor | MCP `ue_*` tools attached to a running editor | authoring and verifying graphs, scenes, assets |
+| Batch CLI | `UnrealEditor-Cmd.exe` (headless, starts and exits) | bulk compile/validate/cook, scripted jobs over many assets |
+
+Live out-of-band channels (`CmdLinkServer`, Python remote execution) are in
+`references/capability_boundaries.md` §1.4. The **offline batch** layer — Commandlets,
+`-ExecutePythonScript`, `-run=pythonscript` — is in `references/ue-cli-batch.md`.
+Read that reference before running a native CLI job; its task locks and side effects differ
+from MCP calls. Prefer `CompileAllBlueprints` / `DataValidation` commandlets for bulk
+pre-flight checks that MCP cannot expose.
+
 ## Managed calls
 
 Discovery remains available through --url. Other tools and executable batches

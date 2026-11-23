@@ -226,6 +226,70 @@ executed this pass]` Treat §1.4 as the escape hatch whenever a task hits an MCP
 | Enum-array params beyond `collision_channels` | only one catalogued; systematic survey needs write probes |
 | Opt-in plugin toolsets (LiveCoding/ChaosCloth/MVVM) | tool inventories read from source; never executed — `[UNV]` |
 
+### 6.1 Recheck 2026-11-23 — CCC, UE 5.8.4-EN (live MCP, task-leased)
+
+Question asked: "now that AI is stronger, do these UNV items still stand?" Answer: **AI strength is
+irrelevant here — an UNV clears only when its *condition* is met (asset / plugin / working endpoint).**
+Live editor was launched on CCC (PID-leased, port 8000, 52 toolsets — matches baseline) and each
+item probed. Results:
+
+| Item | 2026-11-23 result | Tag |
+|---|---|---|
+| `PhysicsAssetTools.CreateFromMesh` | **Root cause GONE.** Schema now `meshPath:string` + `bAssignToMesh:bool` (NOT object-typed as the old note said). Fake path `/Game/__PROBE__/DoesNotExist` returned *"No skeletal mesh found at ..."* → params parse + reach engine logic. Real assets exist (`SK_Crow`). Only the actual create-and-save (a disk write) was intentionally not performed. | `[VERIFIED 2026-11-23 UE5.8.4-EN]` schema+params; full create still `[UNV]` by choice (write) |
+| PhysicsAsset object-ref reads (`GetBodyNames`) | **CLEARED.** `physicsAsset:{"refPath":"/Game/TestT13/Crow/Meshes/SK_Crow_PhysicsAsset..."}` returned 19 body names. Object-typed params work with `refPath` form. | `[VERIFIED 2026-11-23 UE5.8.4-EN]` |
+| `SemanticSearchToolset.Search` struct | **Partly cleared.** `{"query,classFilter:[],pathRegexes:[],k}` now *converts* (old note "never converted successfully" no longer holds) — reaches backend and fails with *"Embedding generation failed: Connection failed"*. Struct accepted; a live embedding service is the new blocker. | `[VERIFIED 2026-11-23 UE5.8.4-EN]` struct accepted; result still blocked (no embedding backend) |
+| ControlRig pose readback | **Still UNV — condition unmet.** `get_all_controls`/`get_all_bones` returned `[]` on `CR_Test`/`CR_Test13` (no built hierarchy). `get_local_transform` with empty item ref returns identity (0,0,0 / scale 1) — expected for a null item, NOT evidence about pose. Need a CR asset with a real hierarchy to test the original 0.0-readback claim. | `[UNV]` (asset prerequisite missing) |
+| StateTree authoring | **Still inspection-only.** `StateTreeTools` = 9 getters, no authoring tools by schema. `get_root_states` on `ST_Test` returned *"not valid StateTree"* (asset path/class mismatch). Authoring remains absent at the tool layer. | `[UNV]` / effectively absent |
+| BT / Conversation / WorldConditions authoring | **Unchanged.** Toolsets present, inspection-only by schema; no target assets in CCC. | `[UNV]` |
+| AnimBP EventGraph authoring | **Unchanged.** No AnimBP asset; creation still `[BLOCK]` (skeleton-picker modal). | `[BLOCK]` |
+| Enum-array params beyond `collision_channels` | **Unchanged** — needs systematic write probes; not run this pass. | `[UNV]` |
+| Opt-in toolsets (LiveCoding/ChaosCloth/MVVM) | **Unchanged.** `LiveCodingToolset` describe returned *"toolset not found"* on CCC — plugins not enabled in `.uproject` (matches §1.3 gating). | `[UNV]` (plugin gating) |
+
+**Meta-verdict**: 2 items cleared, 1 structurally advanced (struct accepted, new external blocker),
+5 unchanged because their *prerequisite* (asset/plugin/write-probe) is still absent. Not one changed
+because the model got smarter — they changed because the **engine schema, test-bed assets, or
+runtime config** changed. This is the operational proof of why the re-verification protocol (§7)
+diffs tools/assets, not "AI capability".
+
+### 6.2 OPEN QUESTION — Level Blueprint "cannot open" vs Codex claim (2026-11-23) `[UNV — NEXT ITERATION]`
+
+**Status: unresolved — contradictory reports, do NOT close.** This is a scheduler note for the next
+iteration, not a conclusion. Recorded because two observations conflict and neither was fully reproduced.
+
+- **Claim (user report):** "Codex opens the level blueprint every time and goes straight in to do
+  functional design." If true, the G9/#47 `needs manual open-once first` note is either outdated or
+  circumventable, and §1 table row "Level Blueprint editing | PARTIAL" needs upgrading.
+- **Contradicting evidence (this session, UE 5.8.4, CCC `/Game/TestT1/NewMap`):**
+  - Offline Python (`-run=pythonscript`): asset registry reports **0** `LevelScriptBlueprint` assets;
+    `load_object` on 4 candidate ref paths → all `None`. `new_object(LevelScriptBlueprint)` *does*
+    create an object but it is a hollow shell — `ubergraph_pages`/`graphs`/`generated_class`
+    unreadable, no EventGraph, not attached to `Level` (whose `LevelScriptBlueprint` property is
+    protected). `Level`/`World` expose no `get_level_script_blueprint` (C++ `ULevel::GetLevelScriptBlueprint`
+    exists but is not Python-exposed).
+  - Live MCP (task-leased): before any manual open, `BlueprintTools.get_graph` on 4 candidate refs →
+    all `not valid Blueprint`. `EditorAppToolset.OpenEditorForAsset` rejects blueprint refs
+    (`not a valid asset path`); the map path opens but `GetOpenAssets` stays empty and the graph is
+    still unreadable. `SlateInspector` observed one window ("CCC - Unreal Editor") but `Snapshot`
+    returned ~209 bytes with no widget tree (unfocused/headless state) — **the UI-click route was
+    NOT actually reproduced**.
+- **Working hypothesis (unproven):** Codex does not use a direct API — it likely drives
+  `SlateInspectorToolset` (Observe→Snapshot→Click) to click the toolbar Blueprint button / content
+  browser, which performs the G9/#47 "open once" and instantiates the object. If so, the capability
+  is "agent clicked the UI", not "AI got stronger" and not "MCP gained an API".
+- **Next iteration — concrete test plan (do all three):**
+  1. Obtain one real Codex operation record (tool calls / screenshots). Identify the exact tool and
+     click target. If unavailable, reproduce manually: with a **focused** editor window, `Windows`
+     → `Observe(ref="")` → `Snapshot`, locate the level-Blueprint entry, `Click` it.
+  2. After open, call `EditorAppToolset.GetOpenAssets` (expect the blueprint to appear) then
+     `BlueprintTools.get_graph(blueprint=<ref>, graph_name="EventGraph")` /
+     `read_graph_dsl`. If both work → upgrade §1 row from PARTIAL `[DOC]` to
+     `[VERIFIED <date> UE<ver>-<lang>]` and append the click recipe to `core-workflows.md` G9/#47.
+  3. If Snapshot still returns an empty tree, try `Observe` on a specific `ref` (not `""`) and a
+     window `select` via `Windows(action="select")` first. An empty tree is a harness limitation,
+     **not** proof the UI route fails.
+- **Guard:** do NOT "resolve" this by reasoning about model capability. Resolve it by reproducing
+  the exact tool call, exactly as §7 diffs tools/assets rather than rating "AI strength".
+
 ## 7. How to re-verify (after any engine/plugin change)
 
 ```powershell
