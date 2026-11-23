@@ -290,6 +290,68 @@ iteration, not a conclusion. Recorded because two observations conflict and neit
 - **Guard:** do NOT "resolve" this by reasoning about model capability. Resolve it by reproducing
   the exact tool call, exactly as §7 diffs tools/assets rather than rating "AI strength".
 
+### 6.3 UE 5.9.0 recheck on real machine (2026-11-23) `[VERIFIED 2026-11-23 UE5.9.0-EN]`
+
+Engine `E:\UE_5.9` (5.9.0, CL 60738873), read-only commandlet probes via a module-free probe
+project `CCC59Probe.uproject` sharing CCC/Content. Method: `-AgentMode -nullrhi -run=pythonscript`
+with a script that writes results to disk (stdout `print` is not reliable). Exit 1 was caused by
+unrelated project plugin/build baggage, not by the probe; every probe reached `=== DONE ===`.
+
+**Toolset layer doubled — authoritative registry snapshot (`ToolsetRegistry.get_all_toolset_json_schemas()`,
+2.85 MB JSON): 106 registered toolsets on 5.9 vs 52 observed on 5.8.4.**
+
+| Earlier verdict | 5.9 finding | Action |
+|---|---|---|
+| StateTree authoring `[UNV]` (inspection-only) | `state_tree_toolset.state_tree.StateTreeToolset` has **49 tools**, full authoring: `add_task`, `add_blueprint_task`, `add_evaluator`, `add_consideration`, `add_global_task`, `move_*`, `remove_*`, `get_*` | **CLEARED** — authoring now exists |
+| BehaviorTree authoring `[UNV]` | `AIModuleToolset.BehaviorTreeToolset` has **25 tools**: `CreateBehaviorTree`, `AddComposite`, `AddTask`, `AddDecorator`, `AddService`, `AddBlackboardKey`, `Move*/Remove*` | **CLEARED** — authoring now exists |
+| SemanticSearch `[UNV]` (struct never converted / embedding backend down) | `SemanticSearchToolset` **absent** from 5.9 registry | Boundary moved: tool removed, not fixed |
+| opt-in LiveCoding/Cloth/MVVM `[UNV]` | `LiveCodingToolset`, `ChaosClothAssetToolset`, `MVVMToolset` all registered | **CLEARED** at registry level; execution still untested |
+| Python DSL we document | Official `BlueprintToolsets.BlueprintDslToolset` (7 tools: `Read`/`Write`/`Edit`/`Diff`/`Schema`/`Docs`/`FindNodeReferences`) + `editor_toolset.toolsets.blueprint.BlueprintDslTools` | Our DSL is now official; prefer native toolset on 5.9 |
+| Skill mechanism we document | `ToolsetRegistry.AgentSkillToolset` (4 tools: `ListSkills`/`GetSkills`/`CreateSkill`/`UpdateSkill`); Markdown `SKILL.md` folders under `<Plugin>/Skills/`, `<Project>/Skills/`, `Engine/Extras/AgentTools/Skills/` with frontmatter `name`/`description`, loaded by `GetSkills`, relative links rewritten to absolute | Architecture validated; our external package may be superseded on 5.9 |
+| `FileSystemToolset`, `ConsoleToolset`/`LogsToolset`, `PerfToolset` (Csv/Gpu/Stats), `SceneCaptureToolset`, `WidgetAnimationToolset`, `TextureGraphToolset`, `FabToolset` | all newly registered | Re-run §1 axis-A inventory on 5.9 before claiming any `[ABS]` |
+
+**13-domain `[ABS]` claims: still mostly intact.** No toolsets for Landscape, Foliage, UV, Audio,
+Localization, Movie Render. `SourceControl` exposes only `SourceControlHelpers` (not editing
+source control state). Profiler now has `CsvProfilerToolset`/`GpuProfilerToolset`/`StatsToolset`
+— profile **inspection** is no longer ABS, but profiler-driven automation is untested. As always,
+re-diff the tool inventory (§7) rather than assuming.
+
+**Level Blueprint (§6.2) — partially advanced, NOT closed:**
+
+- 5.9 Python still exposes **no** `get_level_script_blueprint` on `Level` or `World` (both report
+  `relevant: []`), and `AssetRegistry` still reports 0 `LevelScriptBlueprint` assets. The G9/#47
+  lazy-object root cause **survives 5.9**.
+- New in 5.9: `unreal.BlueprintEditorLibrary` (143 methods, incl. `find_event_graph`,
+  `list_graph_names`, `create_node_from_reference`, `create_entry_point`, `compile_blueprint`) and
+  `GraphDsl*` structs. On a `new_object(LevelScriptBlueprint)` shell: `find_event_graph` → `None`,
+  but `add_function_graph(lb,"ProbeGraph")` **succeeded**, `list_graph_names` → `['ProbeGraph']`,
+  and `create_node_from_reference(g,"KismetSystemLibrary.PrintString",...)` **created a real
+  `K2Node_CallFunction`**. So 5.9 can inject a graph/node into the shell — something 5.8.4 could not.
+- **But** `compile_blueprint` → `False`, `generated_class` → `None`, `create_entry_point` → `None`.
+  The shell is still not a runnable level blueprint. Programmatic authoring is partial; the
+  §6.2 open question stays `[UNV — NEXT ITERATION]`, now with this new evidence attached.
+- **Codex claim explained by official docs:** UE 5.9 `Unreal Assistant` panel runs Claude Code /
+  Codex / Cursor / OpenCode via **Agent Client Protocol (ACP)** adapters (`codex-acp`,
+  `claude-agent-acp`) and connects them to the same Unreal MCP server; every tool call is visible
+  in the panel's **Required Actions**. MCP server is loopback-only, no auth. So Codex and our
+  agent use the *same* tools — the difference is which actions it performs (likely Slate UI click
+  → open-once), not model strength. A future iteration can obtain the exact call chain from
+  Required Actions.
+
+**5.9 headless-run knowledge is now official:** engine ships
+`Engine/Extras/AgentTools/Skills/unreal-headless-run/SKILL.md` documenting `-AgentMode`
+(`-unattended -nosplash -nopause`, JSON stdout, auto-dismiss dialogs), `-ExitTimeout`/`-NoProgressTimeout`/
+`-HangTimeout` (exit 124/125/126), `<Project>/Saved/Logs/<exe>-<pid>.result.json` with
+`exit_code`/`reason`/`markers`/`suppressed_dialogs`, and Git Bash argument-mangling traps
+(`MSYS_NO_PATHCONV=1`). Our `ue-cli-batch.md` remains useful for 5.8.4 and for the
+MCP-vs-CLI-vs-knowledge routing decision, but on 5.9 prefer the native skill.
+
+**Harness notes (learned the hard way):** GUI editor launched with `-nullrhi` hangs at
+`Running DelayedAutoRegister Phase` with no log progress; GUI needs rendering, commandlet does not.
+A probe `.uproject` placed inside CCC/ still triggers UBT to compile `CCCEditor.Target.cs` and
+fails on the Chinese path (`C1083` PCH missing) + stale `UELink` BuildId — keep probes module-free
+and in a clean directory. Registry snapshots can be taken without any GUI via commandlet Python.
+
 ## 7. How to re-verify (after any engine/plugin change)
 
 ```powershell
