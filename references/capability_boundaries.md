@@ -445,9 +445,76 @@ on UE 5.9.0 commandlet (`CCC59Probe.uproject`). Evidence files:
 | **§4.8** event-dispatcher output params not supported `[DOC]` | **CONFIRMED LIVE + new crash finding.** On a real dispatcher: `AddFunctionParam(bInputParam=False)` and `AddObjectFunctionParam(bInputParam=False)` both → `ERROR=Event dispatcher "ProbeDispatcher" only supports input parameters.`; input param → OK. **Separately:** calling `AddFunctionParam(bInputParam=False)` on a plain **EventGraph** crashed the editor: `Assertion failed: EntryNodes.Num() == 1 [BlueprintEditorUtils.cpp:5605]` (exit 3). | **HOLDS** (+ new `[VERIFIED ...]` crash hazard: never add output params to an EventGraph via this tool on 5.9) |
 
 **Meta-verdict:** 3 laws materially changed (§4.2 trap gone, §4.3 no hang in commandlet, §4.5
-DiscoverTests gate relaxed), 2 confirmed (§4.4, §4.8), 1 partially confirmed (§4.6), 1 blocked by
-harness (§4.7 needs GUI PIE). This reinforces §6.4's versioned-retest rule: even *behavioural*
-laws (not just tool presence) expire across engine versions — re-run them, don't inherit the tag.
+DiscoverTests gate relaxed), 2 confirmed (§4.4, §4.8), 1 partially confirmed (§4.6), 1 harness-limited at the time (§4.7) — **since cleared in §6.6 on real GUI PIE**. This reinforces
+§6.4's versioned-retest rule: even *behavioural* laws (not just tool presence) expire across
+engine versions — re-run them, don't inherit the tag.
+
+### 6.6 GUI recheck — real focused editor (2026-11-23) `[VERIFIED 2026-11-23 UE5.8.4-EN]`
+
+First session with a genuine **windowed, rendered** editor (not commandlet, not `-nullrhi`).
+5.8 CCC launched via a background-held process:
+`UnrealEditor.exe CCC.uproject -ModelContextProtocolStartServer -ModelContextProtocolPort=8000`.
+MCP handshake on port 8000, 52 toolsets, identity PID-verified. This closed the one item that
+commandlet could not reach (§4.7); §6.2 advanced but stayed open pending a Codex record.
+
+**Harness discoveries (the real blockers, not engine/MCP capability):**
+
+1. **Empty Slate Snapshot (the ~209-byte tree in §6.2) was caused by the window being
+   INVISIBLE (`IsWindowVisible(hwnd)==0`), not by lack of focus and not by a Slate limitation.**
+   The editor process was alive and `Responding=True`, but `EnumWindows` showed
+   `"CCC - Unreal Editor"` with `visible=0`. Fix: locate the hwnd (Win32 `EnumWindows` +
+   `GetWindowTextW`) and call `ShowWindow(hwnd, SW_RESTORE=9)` then `SW_SHOW=5`.
+   After that, `Snapshot(ref:"", maxDepth:30)` grew from 209 B to **5909 B**: full widget
+   tree, `[focused]` marker, Play/Content Drawer/menu bar all present. `Windows(list)` also
+   started returning the window (it returned empty before). **Rule: before concluding a
+   Slate tree is empty, check `IsWindowVisible`; a hidden top-level window yields a stub tree.**
+   `SetForegroundWindow` returns False from a background process (Windows foreground-lock) —
+   that is normal and did NOT block Snapshot once the window was visible.
+2. **`ue_connect.py check` timing out on localhost was proxy hijack, not a dead MCP server.**
+   Env had `HTTP_PROXY=http://127.0.0.1:5221`; requests routed `127.0.0.1:8000` through it.
+   `NO_PROXY` was set but not honoured by the tool's HTTP client. Fix: run every MCP call with
+   `env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy`. Handshake then succeeded
+   instantly. Same class of trap as the CDP-proxy false-negative already recorded in memory.
+
+**§4.7 PIE-conditional — CLEARED `[VERIFIED 2026-11-23 UE5.8.4-EN]` (was `[DOC]`/harness-limited):**
+
+| Step | Result |
+|---|---|
+| `IsPIERunning` before | `false` |
+| `StartPIE({bSimulate:false, playMode:"PlayMode_InViewPort", warmupSeconds:2})` | OK (void) |
+| `IsPIERunning` after 5 s | **`true`** — commandlet had returned `false` here |
+| `FocusOnActors` during PIE (real ref AND empty `[]`) | **`isError: "FocusOnActors is not supported during PIE."`** — gate fires before param validation |
+| `StopPIE` → `IsPIERunning` | `false` |
+| `FocusOnActors` after stop | OK (void) — gate released |
+
+So §4.7's PIE refusal is real and now live-verified; commandlet's `StartPIE`→OK but
+`IsPIERunning`→false was purely a no-render-world harness artifact.
+
+**§6.2 Level Blueprint — root cause firmed up, Codex claim still needs a real operation record:**
+
+- Window-visibility fix means the previously "unreproducible" UI-click route is now
+  **technically reproducible**: `Snapshot` is full, and `Click` supports
+  `{"button":"right"|"left"|"middle","doubleClick":bool,"modifiers":...}` (not left-only —
+  earlier schema read was incomplete), so Content-Browser right-click → "Open Level Blueprint"
+  is reachable via SlateInspector. The old "UI-click route was NOT actually reproduced"
+  limitation is removed — the *instrument* works now.
+- But on the concrete test map (`/Game/TestT1/NewMap`, a World Partition map with
+  "invalid actor files"), even after the map is open in a visible editor:
+  `BlueprintTools.list_graphs` on both `...:PersistentLevel.LevelScriptBlueprint` and
+  `_0` → `isError "not valid Blueprint for property 'blueprint'"`. And
+  `ObjectTools.list_properties(instance=...:PersistentLevel)` returns a property list with
+  **no `LevelScriptBlueprint` field** (protected on `ULevel`, not Python/MCP-exposed).
+  So there is still no API path from an open map to its level-script graph.
+- Verdict: the G9/#47 "manual open-once" note survives as an **API-layer** fact. The Codex
+  claim is now most consistent with "agent drove the UI (SlateInspector Click/Observe), which
+  instantiates the LSBP" — not "AI got stronger" and not "MCP gained an API". To finally
+  close it, obtain ONE real Codex operation record (which tool + which click target); the
+  harness can now execute any such recipe. Until then keep `[UNV — needs Codex record]`,
+  and do NOT upgrade the §1 "Level Blueprint editing | PARTIAL" row on capability grounds.
+
+**Meta:** both previously-GUI-blocked items fell not to a stronger model but to fixing two
+harness defects — an invisible window and a proxy hijacking localhost. This is §6.4's
+versioned-retest rule applied one level down: *verify the harness before blaming the boundary*.
 
 ## 7. How to re-verify (after any engine/plugin change)
 
