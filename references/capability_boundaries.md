@@ -491,6 +491,10 @@ So §4.7's PIE refusal is real and now live-verified; commandlet's `StartPIE`→
 `IsPIERunning`→false was purely a no-render-world harness artifact.
 
 **§6.2 Level Blueprint — root cause firmed up, Codex claim still needs a real operation record:**
+> ⚠️ **Superseded by §6.7 (UE 5.9):** the UI-click route below was predicted and is now
+> **actually reproduced** on 5.9 via WidgetFinder → toolbar Blueprints → "Open Level Blueprint"
+> (real EventGraph tab opens). The `[UNV — needs Codex record]` verdict below no longer stands;
+> read §6.7 for the closed result. Kept here as the 5.8-state historical record.
 
 - Window-visibility fix means the previously "unreproducible" UI-click route is now
   **technically reproducible**: `Snapshot` is full, and `Click` supports
@@ -515,6 +519,85 @@ So §4.7's PIE refusal is real and now live-verified; commandlet's `StartPIE`→
 **Meta:** both previously-GUI-blocked items fell not to a stronger model but to fixing two
 harness defects — an invisible window and a proxy hijacking localhost. This is §6.4's
 versioned-retest rule applied one level down: *verify the harness before blaming the boundary*.
+
+### 6.7 UE 5.9 GUI recheck — C1083 solved, §6.2 CLOSED (2026-11-23)
+
+The 5.8 GUI recheck in §6.6 left two items open and was engine-version-limited. This section
+re-runs both on **UE 5.9.0 (build 60738873)** with a real editor. Result: the launch blocker is
+solved, §4.7 is VERIFIED on 5.9, and **§6.2 is now CLOSED — the Codex claim is reproduced**.
+
+**Launch blocker (C1083 / module-not-found) — root cause and fix.** The earlier `CCC59Probe.uproject`
+lived *inside* `CCC/`, so UE also scanned `CCC/Plugins/UELink` (a 5.8-compiled DLL, BuildId 55116800
+vs 5.9's 60738873), skipped it, then raised a modal `Plugin 'UELink' failed to load because module
+'UELink' could not be found`; UBT tried to rebuild it over the Chinese path and hit C1083. Correct
+fix: a **clean project in a pure-ASCII directory with no Source/, no Plugins/, no Target.cs** —
+`C:\UE59Clean\UE59Clean.uproject` (`EngineAssociation: 5.9`, `Modules: []`, engine plugins enabled:
+PythonScriptPlugin, EditorScriptingUtilities, ModelContextProtocol, ToolsetRegistry, EditorToolset,
+SlateInspectorToolset, AllToolsets). Launch:
+```
+"E:\UE_5.9\Engine\Binaries\Win64\UnrealEditor.exe" "C:\UE59Clean\UE59Clean.uproject" \
+  -AgentMode -unattended -NoSplash -ModelContextProtocolPort=8001
+```
+Ready in ~2.5 min (shader/shadermap compile). No C1083, no modal. `-unattended` implies
+`-RenderOffScreen`; that is fine for 5.9 (see below), and `-AgentMode` suppresses the SDK/setup wizard.
+
+**UE5.9 native MCP is a different protocol from the skill backport.** It is an HTTP server at
+`http://127.0.0.1:8001/mcp` with `Mcp-Session-Id` header, protocol 2025-06-18, and exposes only
+**4 meta-tools** (not `begin`/`describe_toolset`/task-lease):
+`list_toolsets`, `describe_toolsets`, `describe_tools`, `call_tool`.
+Key gotchas (all hit live): `call_tool` wraps args under the key **`arguments`** (not `input`);
+toolset_name is the full name (`EditorToolset.EditorAppToolset`), tool_name is the short name
+(`StartPIE`, `ListGraphs`); `execute_python` takes `script:{content,language:"Python"}` (a CodeBlock
+object, not a string) and requires `read_me` first; `describe_toolsets(..., include_schemas:true)` or
+`describe_tools` for input schemas. Tool names are PascalCase in 5.9 (`ListGraphs`, `GetGraph`,
+`FindActors`) vs snake_case in 5.8. Proxy must be cleared for localhost (`HTTP_PROXY` hijacks it).
+
+**§4.7 PIE gate — [VERIFIED] on 5.9.** On an offscreen 5.9 editor, `IsPIERunning` went
+false → `StartPIE` → **true** → `StopPIE` → false. `FocusOnActors(actors:[])` returned `null` (OK)
+before PIE, returned the literal error **`FocusOnActors is not supported during PIE.`** during PIE,
+and returned `null` again after stop. Full closed loop, matching §6.6's 5.8 result. Note the gate
+also holds offscreen — §6.6's "needs a GUI" framing was too strong; what is needed is a real
+editor *world*, which a commandlet does not provide but `-RenderOffScreen` does.
+5.9 additionally documents the gate in the tool description ("Cannot be called while PIE is active").
+
+**SlateInspector works offscreen in 5.9.** Unlike the 5.8 backport (§6.6: invisible window → 209 B
+empty tree), 5.9's native `SlateInspectorToolset` explicitly supports `-RenderOffScreen`
+("resize and maximize also work under -RenderOffScreen"). `Snapshot(ref:"", maxDepth:30)` returned a
+**7057-byte** complete widget tree on the offscreen editor. No `ShowWindow` needed. This is a
+genuine 5.8→5.9 capability difference in the harness path, not just a config fix.
+5.9 also adds `WidgetFinder.WidgetFinderSubsystem` (call `StartService` first; query grammar via
+`GetQuerySyntax`; `Query(request:{query,limit,offset})`) — a much sharper widget locator than
+walking Snapshot trees, and the tool that found the level-blueprint button below.
+
+**§6.2 Level Blueprint — CLOSED. Codex claim reproduced.** Two independent lines of evidence on 5.9:
+1. **API path confirmed absent.** `ListGraphs` rejects both `...:PersistentLevel.LevelScriptBlueprint`
+   and `...LevelScriptBlueprint_0` with `is not valid Blueprint for property 'Blueprint'`, even after
+   the level is open. Editor-side unsandboxed Python (`execute_python`) shows `get_editor_world()`
+   works and `WorldSettings` exists, but `world.get_level_script_blueprint` does **not** exist,
+   and neither `EditorLevelLibrary` nor `LevelEditorSubsystem` has any script/blueprint method.
+   => UE's Python/MCP object layer does not expose LSBP. Not an AI-capability issue, not a missing
+   MCP tool — an engine API boundary. CLI has no path either (§6.2).
+2. **UI path reproduced the Codex claim.** `WidgetFinder` query `*Blueprint*` located the toolbar
+   Blueprints combo at pos=341,62 (`ref=b_6`). Clicking it opens a menu whose **"LEVEL BLUEPRINTS →
+   Open Level Blueprint"** item exists; clicking that item opens a real level-blueprint editor:
+   fresh Snapshot shows tabs `My Blueprint` + `EventGraph` and a `LEVEL BLUEPRINT` details panel,
+   tree growing 11 KB → 26 KB. So a level blueprint **can be opened in 5.9 — through Slate UI
+   automation, not through any API**. This is exactly the kind of path Codex can take; the earlier
+   "Codex can open it every time" report is now a reproduced capability, not an unverified claim.
+   Caveat: API reads (`ListGraphs`/`GetGraph`) still cannot address the LSBP after the UI opens it —
+   "open the editor" and "read its graph via MCP" remain two different things.
+
+**Verdict change:** §6.2 moves from `[UNV — needs Codex record]` / `PARTIAL` to **reproduced via UI**.
+The §1 "Level Blueprint editing | PARTIAL" row should be read as: **UI open = possible; API/graph
+read or edit = still not available**. Do not claim full level-blueprint editing.
+
+**Retest recipe for 5.9 GUI (module-free, ASCII path, native MCP):**
+```
+clean project -> -AgentMode -unattended -NoSplash -ModelContextProtocolPort=8001
+-> HTTP /mcp, initialize -> Mcp-Session-Id -> notifications/initialized
+-> call_tool{toolset_name, tool_name, arguments}
+-> Snapshot/WidgetFinder work offscreen; no ShowWindow or proxy-free backport needed
+```
 
 ## 7. How to re-verify (after any engine/plugin change)
 
