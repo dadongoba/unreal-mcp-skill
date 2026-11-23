@@ -428,6 +428,27 @@ for the exact engine build + live `AllToolsets` set it was captured on. Store on
 re-diffed. The 5.8 verdicts above are historical evidence, not current truth on 5.9 — keep the
 version in every tag.
 
+### 6.5 §4 cross-cutting laws — law-by-law re-run on 5.9 (2026-11-23) `[VERIFIED 2026-11-23 UE5.9.0-EN]`
+
+§6.4 deferred these; this pass runs each §4 law individually via `ToolsetRegistry.execute_tool`
+on UE 5.9.0 commandlet (`CCC59Probe.uproject`). Evidence files:
+`CCC/Saved/Logs/_ue59_sec4_probe{,2,3,4,5}.py` + matching `_ue59_sec4_probe*.txt`.
+
+| Law (5.8) | 5.9 re-run result | Status |
+|---|---|---|
+| **§4.2** enum-array schema-lie: `collision_channels` string[] fails, numeric enum idx works, error doesn't name the param | **STRUCTURE GONE.** 5.9 `LevelToolset.FindActors` takes a single `filter:object` (`ActorSearchFilter`); `GetCollisionChannels` returns `["ObjectTypeQuery1".."ObjectTypeQuery6"]`. Both `filter.collisionChannels:["WorldStatic"]` and `[0]` were **accepted** (no conversion failure). Unknown key `collisionChannel` gives a precise "no such field on ActorSearchFilter: 'Filter.collisionChannel'" + full example struct. | **OBSOLETE on 5.9** — the trap was a 5.8 arg-schema artifact, redesigned away |
+| **§4.3** modal blocker: AnimBP create hangs MCP (skeleton-picker) `[BLOCK]` | **No hang in commandlet.** `BlueprintToolset.Create` with `assetType=/Script/Engine.AnimBlueprint` returned in **0.08s** with `ERROR=Could not create Blueprint AnimBP_Probe` (no skeleton → clean failure, no modal, server alive). | **CHANGED** in 5.9 commandlet path; GUI-modal behaviour still untested — do not claim `[BLOCK]` cleared for the live editor |
+| **§4.4** declared import gates (columns/header/interp_mode/cache) `[DOC]` | **CONFIRMED, more explicit.** `CurveTableToolset.ImportFile` rejected `RCIM_BOGUS` with *"Valid values: 0=RCIM_Linear, 1=RCIM_Constant, 2=RCIM_Cubic"* (enum values now named in the error — 5.8 note said the error was opaque). `DataTableToolset.ImportFile` validated schema object type; `StringTableToolset` source-file check; `DataRegistryTools.GetItems` → "Registry '__NONE__' not found. Available: (none)". Descriptions still state the column/header rules. | **HOLDS** + error quality improved `[VERIFIED ...]` |
+| **§4.5** serialization (DiscoverTests first; one level instance at a time) `[DOC]` | **PARTLY RELAXED.** `ListTests()` with NO prior `DiscoverTests` returned `OK {"tests":[],"total":0}` — no ordering gate enforced on the read path (5.8 said DiscoverTests MUST run first). `EditLevelInstance` description still warns "only one level instance in edit mode at a time" (not executed — no level-instance asset). PCG `GetNodeDataView`/`ExecuteGraphInstance` still carry the "one actor at a time" note in description. | **DiscoverTests gate relaxed** `[VERIFIED ...]`; level-instance/PCG serialization still `[DOC]` |
+| **§4.6** recompile gates (set_parent/retarget → recompile; CDO stale until compiled) `[DOC]` | **Tool calls confirmed; stale-read claim NOT proven either way.** On real BP `BP_Inventory`: `GetDefaultObject`→`Default__BP_Inventory_C`, `GetParent`→`/Script/Engine.Actor`, `CompileBlueprint`→OK, `SetParent`→OK in-memory. Descriptions still state "Blueprint must be recompiled afterward". Did NOT construct the set_parent→read-CDO-without-compile sequence needed to observe staleness. | **Partial** — calls `[VERIFIED ...]`; stale-CDO behaviour stays `[DOC]`/`[UNV]` |
+| **§4.7** PIE-conditional (FocusOnActors refuses during PIE; cue needs PIE) `[DOC]` | **HARNESS LIMIT.** commandlet has no real PIE world: `StartPIE`→OK but `IsPIERunning`→`false`, `FocusOnActors([])`→OK. `ExecuteCueOnSelectedActor` reached param validation (requires `location`/`normal`). Cannot verify the PIE refusal in commandlet; needs a focused GUI editor. | **UNVERIFIED this pass** — do not upgrade |
+| **§4.8** event-dispatcher output params not supported `[DOC]` | **CONFIRMED LIVE + new crash finding.** On a real dispatcher: `AddFunctionParam(bInputParam=False)` and `AddObjectFunctionParam(bInputParam=False)` both → `ERROR=Event dispatcher "ProbeDispatcher" only supports input parameters.`; input param → OK. **Separately:** calling `AddFunctionParam(bInputParam=False)` on a plain **EventGraph** crashed the editor: `Assertion failed: EntryNodes.Num() == 1 [BlueprintEditorUtils.cpp:5605]` (exit 3). | **HOLDS** (+ new `[VERIFIED ...]` crash hazard: never add output params to an EventGraph via this tool on 5.9) |
+
+**Meta-verdict:** 3 laws materially changed (§4.2 trap gone, §4.3 no hang in commandlet, §4.5
+DiscoverTests gate relaxed), 2 confirmed (§4.4, §4.8), 1 partially confirmed (§4.6), 1 blocked by
+harness (§4.7 needs GUI PIE). This reinforces §6.4's versioned-retest rule: even *behavioural*
+laws (not just tool presence) expire across engine versions — re-run them, don't inherit the tag.
+
 ## 7. How to re-verify (after any engine/plugin change)
 
 ```powershell
