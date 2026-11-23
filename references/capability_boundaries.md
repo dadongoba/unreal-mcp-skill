@@ -1,5 +1,11 @@
 # Capability Boundaries — UE 5.8.3 MCP (three-axis map)
 
+> ⚠ **VERSION SCOPE:** Everything in §0–§5 and §6.1 is the **UE 5.8.3/5.8.4** map. On **UE 5.9**
+> several `[ABS]`/`[V]` verdicts are **obsolete** — console commands, file I/O, source control,
+> profiler, MetaSound, Media and gameplay-ability authoring now have toolsets, and the namespace was
+> fully renamed. **Read §6.3 + §6.4 before making any claim on 5.9.** Per-major baseline:
+> `ue583_baseline.json` (5.8) / `ue59_baseline.json` (5.9). See §6.4's versioned-retest rule.
+
 > **Answers "can MCP do X?" before you promise anything.** Built 2026-09-25 on UE 5.8.3
 > (changelist 58210709, EN locale, CCC test bed), 52 toolsets / 830 tools.
 > Inventory truth: `references/ue583_baseline.json`. Toolset landscape: `toolset_map.md`.
@@ -351,6 +357,76 @@ MCP-vs-CLI-vs-knowledge routing decision, but on 5.9 prefer the native skill.
 A probe `.uproject` placed inside CCC/ still triggers UBT to compile `CCCEditor.Target.cs` and
 fails on the Chinese path (`C1083` PCH missing) + stale `UELink` BuildId — keep probes module-free
 and in a clean directory. Registry snapshots can be taken without any GUI via commandlet Python.
+
+### 6.4 Full 5.9 boundary re-check — all 5.8 axes + new ground (2026-11-23) `[VERIFIED 2026-11-23 UE5.9.0-EN]`
+
+§6.3 was a partial recheck. This pass re-runs **every 5.8 axis** against the 5.9 registry and adds
+live execution probes. Sources: authoritative 106-toolset / 1872-tool JSON snapshot
+(`ue59_baseline.json`, captured via `ToolsetRegistry.get_all_toolset_json_schemas()`),
+normalized 5.8↔5.9 diff, and commandlet Python calls via `ToolsetRegistry.execute_tool`.
+
+**Methodology correction (applies to every future diff):** 5.9 renamed the whole namespace —
+`editor_toolset.toolsets.actor.ActorTools` → `EditorToolset.ActorToolset`, snake_case → PascalCase.
+A raw name diff reports a false 82 added / 28 removed toolsets and 1872/781 disjoint tool names.
+Normalize by **strip-non-alphanumeric + lowercase on the short name** before diffing:
+canonical tools 5.8=774 / 5.9=1708, kept 615, dropped 159, new 1093. Even then, "dropped" tools
+like `set_transform`/`find_actors` still exist under PascalCase (`ActorToolset.SetActorTransform`,
+`LevelToolset.FindActors`) — **confirm by domain re-search, never declare a capability lost from a
+name diff alone.** Also "106 vs 52" is not apples-to-apples: 52 was the live `AllToolsets` set on
+5.8.4, 106 is the full registry on 5.9.
+
+**Live-call protocol for `ToolsetRegistry.execute_tool` (proven this pass):**
+`execute_tool(toolset_name, tool_name, json_input)` — toolset must be the **full dotted name**
+(`ConsoleToolset.ConsoleToolset`), tool the **short name** (`GetCVarValue`), params the schema keys
+from `inputSchema.properties`; result is `AsyncFunctionResultString`: call
+`get_value_as_json_string()` for the JSON payload, read `.error` for a structured failure (the error
+lists valid params / closest tool names — use it to self-correct). A short toolset name yields
+"Toolset 'X' not found. Closest registered toolsets: ...". Direct `unreal.<Toolset>.<snake_case>()`
+Python calls do **not** work on these toolsets.
+
+**Axis A — `[ABS]`/`[V]` verdicts broken on 5.9 (live-executed unless noted):**
+
+| 5.8 verdict | 5.9 reality | Evidence |
+|---|---|---|
+| §4.1 "no console tool / no console commands" `[V]` | **FALSE.** `ConsoleToolset.RunConsoleCommand` executed `stat unit` → `{"returnValue":["Cmd"]}`; `GetCVarValue(r.ScreenPercentage)` → `"0"`; `SearchCVars` returns the cvar table | `[VERIFIED 2026-11-23 UE5.9.0-EN]` live |
+| §4.1 "no file I/O through MCP" `[V]` | **FALSE.** `FileSystemToolset` = 9 tools (ReadTextFile/WriteTextFile/CreateDirectory/DeleteFile/ListDirectory/ResolvePath/EditTextByAnchor/EditTextByLineRange/**DownloadUrl**). `ListDirectory` executed OK; `ReadTextFile` reached its validator (`FirstLine must be ≥ 1` — pass `firstLine=1`) | `[VERIFIED ...]` live read; write/download not executed |
+| §3 "Source control = 0 tools" `[ABS]` | **FALSE.** `SourceControl.SourceControlHelpers` = 38 tools: CheckOut, CreateChangelist, SubmitChanges, SubmitChangelist, ListAssetRevisions, LoadAssetRevision, diff changelists… `GetAssetSourceControlState` reached engine ("Revision control is not enabled" — CCC has no provider) | `[VERIFIED ...]` tool present + engine-reached |
+| §3 "Profiler/Insights = 0" `[ABS]` | **FALSE.** `PerfToolset.CsvProfilerToolset`(5)/`GpuProfilerToolset`(1)/`StatsToolset`(4) + `RewindDebuggerToolset`(10) | registry `[VERIFIED ...]`; execution untested |
+| §2 "Movie Render / media / video = 0" `[ABS]` | **PARTLY FALSE.** `MediaToolset.MediaToolset` = 4 tools registered; Movie Render itself still has no toolset | registry `[VERIFIED ...]` |
+| §2 "Audio = 0" `[ABS]` | **PARTLY FALSE.** `EditorToolset.SoundWaveToolset`(2) + `MetaSoundToolset` = 42 tools (Authoring 24 / Discovery 5 / Inspection 13). §6.3's `FindMetaSoundAssets` was a substring false hit — real discovery tools: `FindNodeClasses`/`FindDataTypes`/`FindInterfaces`/`FindRegisteredPages` | registry `[VERIFIED ...]` |
+| §2 "World Partition / data layers / HLOD = 0" `[ABS]` | **PARTLY FALSE.** `LevelToolset` has AddActorsToDataLayer/GetDataLayers/CreateDataLayerAsset/… (data layers reachable); HLOD/streaming still absent | registry `[VERIFIED ...]` |
+| §2 "Animation authoring = NONE" `[ABS]`+`[BLOCK]` | **Still ABS at tool level** — no AnimBP/state-machine/montage/notify/IK-retarget toolset (ControlRig/Sequencer authoring is separate and large) | `[VERIFIED ...]` |
+| §3 Landscape / Foliage / UV / Localization / Virtual production / Mutable / NNE / Chooser / Enhanced Input / Modeling-mode / destruction | **still 0 toolsets** — `[ABS]` survives 5.9 | `[VERIFIED ...]` |
+| §2 GAS "READ, no ability authoring" | **UPGRADE.** `GASToolsets.GameplayAbilityToolset.CreateGameplayAbility` exists; `AttributeSetToolset`/`GameplayCueToolset` present | registry `[VERIFIED ...]`; execution untested |
+| §2 AI "BT/StateTree READ-only" | **UPGRADE — confirmed again.** `state_tree_toolset…StateTreeToolset` 49 tools (authoring), `AIModuleToolset.BehaviorTreeToolset` 25 (`CreateBehaviorTree`/`AddComposite`/`AddTask`/`AddBlackboardKey`…) | registry `[VERIFIED ...]` |
+| §6.1/§6.3 SemanticSearch | **CONFIRMED GONE** — no `SemanticSearchToolset` in 5.9 registry | `[VERIFIED ...]` |
+| — new — `ToolsetRegistry.AgentSkillToolset` | 4 tools; `ListSkills` executed OK, returned engine built-in skills (ChaosClothAssetConversionSkill, DataflowGraphEditingSkill, PCGSkill…) | `[VERIFIED ...]` live |
+| — new — `editor_toolset.toolsets.python_scripting.PythonScriptingTools` | 4 tools (`execute_python`/`get_symbol`/`read_me`/`search_symbols`) — a tool-layer Python path distinct from §1.4 remote exec | registry `[VERIFIED ...]`; sandbox scope untested |
+| — new — `FileSystemToolset.DownloadUrl` | network fetch exposed as an MCP tool | registry `[VERIFIED ...]`; NOT executed (untrusted I/O) |
+
+**Axis B / C verdict:** the 5.8 "NO" rows for console/file-I/O/source-control/profiler/media/
+MetaSound/gameplay-ability are obsolete on 5.9 — they describe the **5.8 exposure layer**, not UE.
+Persistent gaps (Landscape, Foliage, UV, Localization, nDisplay/LiveLink, Enhanced Input, AnimBP
+authoring, vertex modeling, destruction, NNE/Chooser) are unchanged. Keyword re-search produced
+false positives (`link`→`SetWidgetAnimationDisplayLabel`, `net`→`MovieSceneTimeWarp`, `nne`→`connect`)
+— every candidate MUST be confirmed against the actual toolset list, as done above.
+
+**5.8 cross-cutting laws (§4.2–§4.8) — NOT re-executed this pass.** This pass re-tested the
+*capability surface* (does a tool/domain exist and can it be called), not the *behavioural traps*:
+§4.2 enum-array schema-lies, §4.3 skeleton-picker modal, §4.4 import shape gates, §4.5
+serialization rules, §4.6 recompile gates, §4.7 PIE-conditional tools, §4.8 event-dispatcher param
+limit were NOT re-probed on 5.9 and keep their 5.8 tags. Note §4.1's conclusion ("no file I/O /
+no console") *is* explicitly overturned above. Before relying on a §4 law on 5.9, re-run the
+specific write probe; the namespace/param renames alone mean cached signatures are stale. §5
+C++ boundary likewise: file I/O is now reachable via `FileSystemToolset` (overturning its "NO
+read/write .h/.cpp" row at the tool layer), but the LiveCoding/UHT/UBT rows were not re-executed.
+
+**Versioned-retest rule (answers "how long do `[ABS]` claims stay valid?"):** `[ABS]` is valid only
+for the exact engine build + live `AllToolsets` set it was captured on. Store one baseline per major
+(`ue583_baseline.json`, `ue59_baseline.json`); at each upgrade run the §7 diff, then re-search
+**domain tokens** (not just names). Treat an `[ABS]` older than one engine minor as `[STALE]` until
+re-diffed. The 5.8 verdicts above are historical evidence, not current truth on 5.9 — keep the
+version in every tag.
 
 ## 7. How to re-verify (after any engine/plugin change)
 
