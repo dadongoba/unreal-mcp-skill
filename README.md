@@ -2,7 +2,7 @@
 
 **English** · [简体中文](README.zh-CN.md)
 
-> A **client-neutral Agent Skill and MCP runtime** for Unreal Engine, with Epic Toolsets and native HTTP backend adapters. Real-editor validation: UE 5.8.3; UE 5.7 adapters currently have protocol-test coverage only.
+> A **client-neutral Agent Skill and MCP runtime** for Unreal Engine, with a three-layer access model: knowledge, live-editor MCP, and native batch CLI. Real-editor validation: UE 5.8.3/5.8.4 and UE 5.9.0; UE 5.7 has adapter protocol coverage only (capability claims stay `[UNV]` until a real 5.7 capture).
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -18,6 +18,18 @@ A portable knowledge package and Python runtime operating UE via Epic's **ModelC
 - **Offline node dictionary + search tools** — 1665-node dictionary + PIE-verified extras, searchable in seconds
 
 Every rule carries a confidence tag: `[VERIFIED <date> UE<ver>-<lang>]` (PIE-proven), `[DOC]` (docs-sourced), or `[UNVERIFIED]`.
+
+## Three access layers — route before acting
+
+Pick the layer by the job; they complement, never replace, each other:
+
+| Layer | Entry | Use for |
+|---|---|---|
+| Knowledge | `ue_knowledge_read` / `launch.py knowledge read` | reading rules and references, no editor needed |
+| Live editor | MCP `ue_*` tools attached to a running editor | authoring and verifying graphs, scenes, assets |
+| Batch CLI | `UnrealEditor-Cmd.exe` (headless, starts and exits) | bulk compile/validate/cook, scripted jobs over many assets |
+
+The batch layer is UE's own command line — `CompileAllBlueprints`, `DataValidation`, commandlets, `-run=pythonscript` — verified end-to-end on the 5.8.4 test bed. It does **not** occupy an editor instance. See [UE native CLI batch](references/ue-cli-batch.md) before running a job; its task locks and side effects differ from MCP calls.
 
 ## Quick start
 
@@ -61,6 +73,15 @@ Every rule carries a confidence tag: `[VERIFIED <date> UE<ver>-<lang>]` (PIE-pro
 - Detection does not install anything. Active/running package identity, upgrade
   guards and rollback remain separate. [Update discovery](references/update-discovery.md).
 
+## Versioned capability knowledge (5.7 / 5.8 / 5.9)
+
+Capability verdicts are version-scoped, not inherited. One baseline per engine major —
+`ue583_baseline.json` (5.8.3), `ue59_baseline.json` (5.9.0), `ue57_baseline.json` (5.7 placeholder, all `[UNV]`). An `[ABS]` verdict is valid only for the exact build + live toolset set it was captured on; older than one minor it is `[STALE]`.
+
+- **UE 5.9** adds toolsets that overturn several 5.8 "impossible" verdicts (console, file I/O, source control, profiler, MetaSound, gameplay-ability authoring) and renames the whole toolset namespace. Always read the versioned recheck before promising a capability. See [capability boundaries](references/capability_boundaries.md) §6.3–§6.5.
+- **Version isolation policy:** isolate at the data/runtime layer (per-major baselines, per-process instances/ports, per-version test projects, backend selected by live schema), but share one skill package and one CLI layer. Do not fork a package per version. See §8 of the same document.
+- 5.7 uses a third-party backend, not Epic-native MCP. Its capability file is a placeholder until a real editor capture is done; never inherit 5.8/5.9 `[V]`/`[ABS]` results onto it.
+
 ## Shared runtime
 
 - MCP stdio and authenticated loopback HTTP; no particular AI client required.
@@ -81,9 +102,11 @@ is local; every user chooses whether to enable public uploading. See
 [contribution setup](references/experience-contribution.md).
 
 Validation: simulated HTTP/SSE, local-state regressions, official SDK interop,
-and a [real Windows UE 5.8.3 dual-editor run](references/validation/ue583-dual-editor-20261019.md)
-covering routing, Blueprint save/readback and PIE in NullRHI mode. Rendering,
-map persistence and end-to-end public intake are outside that verified coverage.
+a [real Windows UE 5.8.3 dual-editor run](references/validation/ue583-dual-editor-20261019.md)
+covering routing, Blueprint save/readback and PIE in NullRHI mode, plus real-editor
+boundary and GUI rechecks on UE 5.8.4 and UE 5.9.0 (§6.1–§6.7 of
+[capability boundaries](references/capability_boundaries.md)). Rendering, map
+persistence and end-to-end public intake are outside that verified coverage.
 
 
 The bridge can start before UE; register the intended instance and start UE before
@@ -120,6 +143,11 @@ Do NOT switch the editor to Chinese (or another localized UI) while driving it v
 SKILL.md                     # router + lawbook (G1-G17) + protocols — start here
 references/
   capabilities/*.md          # 11 per-domain capability docs (design rules + tool params)
+  capability_boundaries.md   # can-MCP-do-X map per version + §6 rechecks + §8 isolation policy
+  ue-cli-batch.md            # third layer: headless native CLI / commandlets
+  ue583_baseline.json        # UE 5.8.3 toolset/tool inventory
+  ue59_baseline.json         # UE 5.9.0 registry inventory
+  ue57_baseline.json         # UE 5.7 placeholder, all claims [UNV]
   dsl_syntax.md              # DSL grammar R1-R27 with verified examples
   node_types.md              # node type_id reference (namespace laws)
   ue_conventions.md          # design-time knowledge (components/collision/UI/zh-locale)

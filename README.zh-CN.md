@@ -2,7 +2,7 @@
 
 [English](README.md) · **简体中文**
 
-> 一个面向不同 AI 客户端的 **标准 Agent Skill 与 MCP 运行时**，支持 Epic Toolsets 与原生 HTTP 后端适配。真机验证版本为 UE 5.8.3；UE 5.7 适配目前通过协议模拟测试，尚未完成真机验证。
+> 一个面向不同 AI 客户端的 **标准 Agent Skill 与 MCP 运行时**，采用三层接入模型：知识层、活编辑器 MCP 层、原生批处理 CLI 层。真机验证版本为 UE 5.8.3/5.8.4 与 UE 5.9.0；UE 5.7 目前只有适配器的协议测试覆盖，在真机采集完成前其能力结论全部保持 `[UNV]`。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -18,6 +18,18 @@
 - **离线节点字典 + 检索工具** —— 1665 个节点的字典 + PIE 验证过的补充节点，秒级检索
 
 每条规则都带有可信度标签：`[VERIFIED <日期> UE<版本>-<语言>]`（经 PIE 验证）、`[DOC]`（来自官方文档）或 `[UNVERIFIED]`（未验证）。
+
+## 三层接入 —— 按任务选层
+
+按任务选层，三者互补而非互相替代：
+
+| 层 | 入口 | 适用场景 |
+|---|---|---|
+| 知识层 | `ue_knowledge_read` / `launch.py knowledge read` | 读取规则与参考文档，无需编辑器 |
+| 活编辑器层 | 连接到运行中编辑器的 MCP `ue_*` 工具 | 创作并验证图表、场景、资产 |
+| 批处理 CLI 层 | `UnrealEditor-Cmd.exe`（无头，启动即退出） | 批量编译/校验/烘焙，跨大量资产的脚本任务 |
+
+批处理层就是 UE 自带的命令行 —— `CompileAllBlueprints`、`DataValidation`、commandlet、`-run=pythonscript`，已在 5.8.4 测试床上端到端验证。它**不占用**编辑器实例。执行任务前请阅读[UE 原生 CLI 批处理](references/ue-cli-batch.md)；它的任务锁和副作用与 MCP 调用不同。
 
 ## 快速开始
 
@@ -54,6 +66,14 @@
 - 网络失败明确返回“未知”；只有旧源码 Release、没有可升级安装包时，返回“尚未发布便携包”。
 - 检查不会安装更新；更新仍受活动任务保护，支持回滚，并提示已有客户端重连。详见[更新发现机制](references/update-discovery.md)。
 
+## 版本化能力知识（5.7 / 5.8 / 5.9）
+
+能力结论是按版本限定的，不会跨版本继承。每个引擎大版本一份基线：`ue583_baseline.json`（5.8.3）、`ue59_baseline.json`（5.9.0）、`ue57_baseline.json`（5.7 占位，全部 `[UNV]`）。`[ABS]`（确认不存在）结论只对采集它的具体 build + 工具集集合有效；超过一个小版本即降为 `[STALE]`。
+
+- **UE 5.9** 新增了若干工具集，推翻了 5.8 的多条“不可能”结论（控制台命令、文件 I/O、源码控制、性能分析、MetaSound、Gameplay Ability 创作），并全量重命名了工具集命名空间。承诺某项能力前，务必先读对应版本的复查结论，见[能力边界](references/capability_boundaries.md) §6.3–§6.5。
+- **版本隔离策略**：在数据/运行层隔离（每 major 一份基线、每进程独立实例与端口、每版本独立测试工程、后端按实时 schema 选择），但共享同一个 skill 包和同一套 CLI 层。不要为每个版本拆出一份包。见同文档 §8。
+- 5.7 使用第三方后端，不是 Epic 原生 MCP。它的能力文件只是占位，真机采集完成前不要把 5.8/5.9 的 `[V]`/`[ABS]` 结论继承过去。
+
 ## 共享运行层
 
 - 提供标准 MCP stdio 和带认证的本机 HTTP 接口，核心不依赖特定 AI 软件。
@@ -72,9 +92,9 @@
 默认只在本机保存；每位用户自行选择是否启用公开上传。
 详见[投稿设置与隐私说明](references/experience-contribution.md)。
 
-验证范围：模拟 HTTP/SSE、本地状态回归、官方 SDK 互通，以及
+验证范围：模拟 HTTP/SSE、本地状态回归、官方 SDK 互通，
 [Windows UE 5.8.3 真实双编辑器测试](references/validation/ue583-dual-editor-20261019.md)：
-无渲染模式下的路由、蓝图保存与读回、PIE 行为已验证；渲染、地图持久化和公开入库链路不在此次通过范围内。
+无渲染模式下的路由、蓝图保存与读回、PIE 行为已验证；此外在 UE 5.8.4 与 UE 5.9.0 上做了真机能力边界与 GUI 复测（见[能力边界](references/capability_boundaries.md) §6.1–§6.7）。渲染、地图持久化和公开入库链路不在此次通过范围内。
 
 
 桥接服务可先于 UE 启动；开始编辑任务前，需要注册目标实例并启动 UE。
@@ -104,6 +124,11 @@
 SKILL.md                     # 路由表 + 法则库（G1-G17）+ 各类协议 —— 从这里开始读
 references/
   capabilities/*.md          # 11 个分领域能力文档（设计规则 + 工具参数）
+  capability_boundaries.md   # 按版本的可做性地图 + §6 复测 + §8 隔离策略
+  ue-cli-batch.md            # 第三层：无头原生 CLI / commandlet
+  ue583_baseline.json        # UE 5.8.3 工具集/工具清单
+  ue59_baseline.json         # UE 5.9.0 registry 清单
+  ue57_baseline.json         # UE 5.7 占位，全部结论 [UNV]
   dsl_syntax.md              # DSL 语法 R1-R27 及验证过的示例
   node_types.md              # 节点 type_id 参考（命名空间法则）
   ue_conventions.md          # 设计期知识（组件/碰撞/UI/中文语言环境）
