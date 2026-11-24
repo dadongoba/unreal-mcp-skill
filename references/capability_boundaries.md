@@ -4,7 +4,9 @@
 > several `[ABS]`/`[V]` verdicts are **obsolete** — console commands, file I/O, source control,
 > profiler, MetaSound, Media and gameplay-ability authoring now have toolsets, and the namespace was
 > fully renamed. **Read §6.3 + §6.4 before making any claim on 5.9.** Per-major baseline:
-> `ue583_baseline.json` (5.8) / `ue59_baseline.json` (5.9). See §6.4's versioned-retest rule.
+> `ue583_baseline.json` (5.8) / `ue59_baseline.json` (5.9) / `ue57_baseline.json` (5.7,
+> placeholder — every 5.7 claim is `[UNV]`). See §6.4's versioned-retest rule and §8's
+> version-isolation policy before touching a second engine version.
 
 > **Answers "can MCP do X?" before you promise anything.** Built 2026-09-25 on UE 5.8.3
 > (changelist 58210709, EN locale, CCC test bed), 52 toolsets / 830 tools.
@@ -609,3 +611,25 @@ powershell -File refresh_schemas.ps1 -Live                            # recorded
 Then re-run the Axis B representative probes. Patch upgrades have so far been tool-layer-safe
 (0/144 broken references on 5.8.3) but **did** add params (`find_actors` gained three, one of which
 carries the §4.2 trap) — always diff before trusting a cached signature.
+
+## 8. Version isolation policy (5.7 / 5.8 / 5.9)
+
+**Decision: isolate at the data/runtime layer; share the skill package and the CLI layer.**
+Do NOT create one skill package per engine version. The runtime core is deliberately
+version-agnostic — `backends.md`: *"An engine version is not a protocol ID"* — adapters dispatch
+from the live discovered schema, not a hardcoded version number. Forking the package triples
+maintenance, splits the shared DSL/node dictionaries, and guarantees knowledge drift.
+
+| Dimension | Isolation | Mechanism / evidence |
+|---|---|---|
+| Knowledge & baseline | **Strong, per major** | One `ueNN_baseline.json` per major: `ue583_baseline.json` (5.8.3), `ue59_baseline.json` (5.9.0), `ue57_baseline.json` (5.7 — placeholder, all `[UNV]`). Every verdict tag carries its engine version. `[ABS]` is valid only for the exact build + live `AllToolsets` set it was captured on; older than one engine minor → `[STALE]` (§6.4). 5.8→5.9 renamed the whole namespace and overturned 8 `[ABS]` rows, so inherited verdicts are wrong. |
+| Runtime instance | **Strong, per process** | Distinct instance name, port, task lease and object refs. 5.8 used port 8000, 5.9 used 8001, 5.7 Avatar used 18777. No cross-instance lease replay; re-registration is blocked during an active task. |
+| Test project | **Strong, per version** | One `.uproject` per engine version. CCC.uproject on 5.9 hit C1083 (UELink 5.8 DLL BuildId mismatch + non-ASCII path); only the clean ASCII probe `C:\UE59Clean` worked. Never upgrade a test bed in place — the plugin binaries are version-pinned. |
+| MCP backend | **By protocol, not version** | 5.7 is not Epic-native MCP: it is a third-party backport (`thecodebrozilla/UE_MCP`) or the Avatar plugin (single `unreal` tool, `action`-based protocol). Register it as its own instance (`--backend avatar-unreal`, per-project port), inspect the live schema, and keep **all** capability claims `[UNV]` until a real 5.7 baseline is captured. Do not select `native-mcp` to bypass listener-identity verification. |
+| CLI batch layer | **Shared** | `UnrealEditor-Cmd.exe`, commandlets and `-run=pythonscript` are engine-bundled and stable across versions; only minor flag gotchas are recorded in `ue-cli-batch.md`. No per-version copy needed. |
+
+**Onboarding a new major version:** create `ueNN_baseline.json` (copy the 5.7 placeholder shape),
+capture the real inventory on a module-free ASCII probe project, run the §7 diff, re-run **all**
+§1–§5 axes and the §4 laws law-by-law (§6.4/§6.5), then flip each `[UNV]` to `[V]`/`[ABS]` with the
+version in the tag. Until that pass completes, inherited 5.8/5.9 verdicts stay historical evidence
+only — never promise a capability on the new version from an old tag.

@@ -1,0 +1,69 @@
+{
+ "artifact": "ue57_baseline.json",
+ "status": "PLACEHOLDER_UNVERIFIED",
+ "purpose": "Per-major isolation slot for UE 5.7. This is NOT a captured inventory and NOT a capability claim source. It exists so 5.7 verdicts are never inherited from the 5.8/5.9 baselines. Populate it from a real 5.7 editor before trusting any answer; see capability_boundaries.md section 8.",
+ "engine": {
+  "version": "5.7",
+  "changelist": null,
+  "build": null,
+  "engine_root": null,
+  "note": "No 5.7 editor was compiled or run for this skill. Nothing here is engine-verified."
+ },
+ "verified": null,
+ "capture_method": null,
+ "mcp_backend": {
+  "note": "UE 5.7 has no Epic-native ModelContextProtocol plugin in this skill. It routes through a third-party backend selected by live schema, not by version number. Both candidates below are unverified here.",
+  "candidates": [
+   {
+    "name": "thecodebrozilla/UE_MCP",
+    "kind": "5.8-to-5.7 backport of MCP and most toolsets",
+    "backend": "epic-toolsets or auto",
+    "known_limits_from_upstream_readme": [
+     "Niagara",
+     "Sequencer animation mixer",
+     "semantic search",
+     "NoRedist redistribution constraints"
+    ],
+    "verified_here": false
+   },
+   {
+    "name": "AvatarGanymede/ue5.7-mcp",
+    "kind": "Win64 5.7 plugin exposing a single 'unreal' tool with action-based protocol",
+    "backend": "avatar-unreal",
+    "registration_example": "python scripts/ue_connect.py register --instance ue57 --project <PROJECT.uproject> --port 18777 --backend avatar-unreal",
+    "verified_here": false
+   }
+  ],
+  "listener_identity": "All paths require an HTTP MCP listener owned by the exact registered UnrealEditor process/project. Do not use native-mcp to bypass that check."
+ },
+ "isolation": {
+  "dimension": "data and runtime layers only; the skill package and CLI layer are shared across 5.7/5.8/5.9",
+  "instance": "ue57",
+  "port": null,
+  "test_project": "one module-free ASCII .uproject per version; never reuse the 5.8 CCC bed with 5.7 plugin binaries",
+  "rule": "backends.md: an engine version is not a protocol ID. Route by discovered live schema."
+ },
+ "toolset_count": null,
+ "tool_count": null,
+ "toolsets": {},
+ "capability_claims": {
+  "default_tag": "[UNV]",
+  "policy": "Every 5.7 capability verdict is [UNV] until this file is populated from a real editor. Do not inherit [V] or [ABS] from ue583_baseline.json or ue59_baseline.json; namespaces and exposure layers differ across majors.",
+  "axes_to_recheck": [
+   "Axis A: toolset/tool inventory (list_toolsets + describe_toolset or registry JSON)",
+   "Axis B: per-domain capability matrix (Blueprint, C++, audio, source control, profiler, MetaSound, GAS, AnimBP, World Partition, opt-in plugins)",
+   "Axis C: not-exposed search evidence, re-searched by domain token not name",
+   "Section 4 laws: 4.1 file/shell/console, 4.2 enum-array trap, 4.3 modal blockers, 4.4 import gates, 4.5 serialization, 4.6 recompile gates, 4.7 PIE-conditional tools, 4.8 event-dispatcher param limit",
+   "Section 5: C++ consumption boundary",
+   "GUI: editor visibility, focus, snapshot and level-blueprint open path"
+  ]
+ },
+ "capture_checklist": [
+  "Compile/run a real UE 5.7 editor on a module-free ASCII project path",
+  "Register a dedicated instance (ue57) with its own port and backend; verify listener identity",
+  "Snapshot the real toolset/tool inventory into the toolsets map and set counts",
+  "Run capability_boundaries.md section 7 diff and re-run all axes law-by-law",
+  "Flip [UNV] to [V]/[ABS]/[BLOCK] with the 5.7 version and build in each tag",
+  "Set verified, engine.changelist, engine.build and capture_method"
+ ]
+}
